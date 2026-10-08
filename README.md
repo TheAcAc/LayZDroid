@@ -19,7 +19,7 @@ A focused Windows alternative to a general-purpose BlueStacks setup. Create fres
 
 **You need:** 64-bit Windows 10/11, at least 6 GB free disk space, an internet connection. Download LayZDroid and the separate KaW game files below. You will sign in to your own game account.
 
-1. **Download both files.** Get [LayZDroid.exe](https://github.com/TheAcAc/LayZDroid/releases/download/v0.1.0-preview.3/LayZDroid.exe) and the [KaW game files](https://github.com/TheAcAc/LayZDroid/releases/download/v0.1.0-preview.1/KaW-362-APKs.zip). Right-click the KaW ZIP and choose **Extract All**. Then double-click `LayZDroid.exe` to open it. No separate .NET installation is needed.
+1. **Download both files.** Get [LayZDroid.exe](https://github.com/TheAcAc/LayZDroid/releases/download/v1.0.0/LayZDroid.exe) and the [KaW game files](https://github.com/TheAcAc/LayZDroid/releases/download/v0.1.0-preview.1/KaW-362-APKs.zip). Right-click the KaW ZIP and choose **Extract All**. Then double-click `LayZDroid.exe` to open it. No separate .NET installation is needed.
 2. **Install the Android runtime once.** Click **Set up runtime**, read the terms, then accept them to enable **Download runtime**. Wait for setup to finish; it downloads about 1.2 GB.
 3. **Create and start an emulator.** Click **Add instance**, select its row in the list, then click **Start selected**. Wait for Android and its internet check to finish. LayZDroid retries the virtual Wi-Fi connection once if needed. Begin with one instance and the default settings.
 4. **Install KaW.** With the running instance selected, click **Import APK**. Open the KaW folder you extracted in step 1 and select **all three APK files together**: `base.apk`, `split_config.en.apk` and `split_config.hdpi.apk`. Hold **Ctrl** while clicking each file, then click **Open** and wait for installation to finish.
@@ -40,7 +40,7 @@ Existing instances adopt the standard display on their next start. Installed gam
 
 ## Preview boundaries
 
-- No arbitrary ten-instance cap in LayZDroid. The pinned engine's declared console-port range provides 16 port pairs; occupied ports reduce that capacity. Actual simultaneous capacity depends on your hardware. The installed LayZ 1.5.2 bot still has its separate ten-worker limit; removing that is a subsequent integration change.
+- No arbitrary ten-instance cap in LayZDroid. The pinned engine's declared console-port range provides 16 port pairs; occupied ports reduce that capacity. Actual simultaneous capacity depends on your hardware. The LayZ 1.5.3 bot still has its separate ten-worker limit; removing that is a subsequent integration change.
 - 768/1024 MB settings are experimental. RAM is a guest allocation, not total host memory use. The engine's `-lowram` option is used; changed effective RAM is treated as a failure. Low-RAM smoothness remains unverified.
 - No ARM translation layer, Google Play Store or Play Services. The local KaW split APKs examined require API 25 and have no native ABI dependency; different game versions must pass their own import checks.
 - LayZDroid uses a separate ADB connection, starting at port 5038 and choosing another available port when needed. Existing custom-emulator and BlueStacks servers are left alone.
