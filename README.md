@@ -17,12 +17,12 @@ A focused Windows alternative to a general-purpose BlueStacks setup. Create fres
 
 ## Quick start
 
-**You need:** 64-bit Windows 10/11, at least 6 GB free disk space, an internet connection and your own KaW APK files. LayZDroid does not include KaW or a signed-in account.
+**You need:** 64-bit Windows 10/11, at least 6 GB free disk space, an internet connection. Download LayZDroid and the separate KaW game files below. You will sign in to your own game account.
 
-1. **Download and open LayZDroid.** Download [LayZDroid.exe](https://github.com/TheAcAc/LayZDroid/releases/download/v0.1.0-preview.1/LayZDroid.exe), then double-click it. No separate .NET installation is needed.
+1. **Download both files.** Get [LayZDroid.exe](https://github.com/TheAcAc/LayZDroid/releases/download/v0.1.0-preview.1/LayZDroid.exe) and the [KaW game files](https://github.com/TheAcAc/LayZDroid/releases/download/v0.1.0-preview.1/KaW-362-APKs.zip). Right-click the KaW ZIP and choose **Extract All**. Then double-click `LayZDroid.exe` to open it. No separate .NET installation is needed.
 2. **Install the Android runtime once.** Click **Set up runtime**, read the terms, then accept them to enable **Download runtime**. Wait for setup to finish; it downloads about 1.2 GB.
 3. **Create and start an emulator.** Click **Add instance**, select its row in the list, then click **Start selected**. Wait for Android to finish starting. Begin with one instance and the default settings.
-4. **Install KaW.** With that instance selected, click **Import APK** and select your KaW APK. If your copy has multiple files, select the base APK and all required split APKs together in the same file picker.
+4. **Install KaW.** With the running instance selected, click **Import APK**. Open the KaW folder you extracted in step 1 and select **all three APK files together**: `base.apk`, `split_config.en.apk` and `split_config.hdpi.apk`. Hold **Ctrl** while clicking each file, then click **Open** and wait for installation to finish.
 5. **Open the game.** Click **Open KaW** and sign in inside the emulator.
 6. **Connect LayZ.** Close LayZ if it is already running. Click **Open LayZ** and select your installed LayZ `.exe`; LayZDroid supplies the connection settings automatically.
 
@@ -57,10 +57,10 @@ Development UI checks render an unshown window and use temporary instance files;
 
 ## Runtime provenance
 
-First-run setup acquires Android Emulator 37.2.12, Platform Tools 37.0.1 and AOSP API 34 x86_64 image revision 4 from Google's official Android repository. Package sizes and upstream checksums are pinned in RuntimeSetup.cs. Upstream license terms are displayed before download, and downloaded packages retain their notices. Runtime binaries and game APKs are not redistributed in the LayZDroid EXE/repository.
+First-run setup acquires Android Emulator 37.2.12, Platform Tools 37.0.1 and AOSP API 34 x86_64 image revision 4 from Google's official Android repository. Package sizes and upstream checksums are pinned in RuntimeSetup.cs. Upstream license terms are displayed before download, and downloaded packages retain their notices. Runtime binaries are not redistributed in the LayZDroid EXE/repository. KaW is a separate release download; its three APK files are unmodified and are not included in the LayZDroid EXE or source tree.
 
 Third-party .NET notices are retained with the release. A future source-built runtime needs its own source/license artifacts before redistribution.
 
 ## MIT licence
 
-LayZDroid's own code is [MIT licensed](LICENSE): you can use, modify and share it, including commercially, provided you keep the copyright and licence notice. It is supplied without warranty. Downloaded Android components retain their own licences and terms.
+LayZDroid's own code is [MIT licensed](LICENSE): you can use, modify and share it, including commercially, provided you keep the copyright and licence notice. It is supplied without warranty. Downloaded Android components retain their own licences and terms. KaW belongs to A Thinking Ape and is not covered by LayZDroid's MIT licence; its [game terms](https://www.kingdomsatwar.com/faq/tos.html) apply.
