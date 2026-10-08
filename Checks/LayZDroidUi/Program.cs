@@ -5,6 +5,10 @@ static class Checks
     [STAThread]static void Main(string[] args)
     {
         ApplicationConfiguration.Initialize();
+        if(args.Length==2&&args[0]=="--check-network"){
+            var live=new Store(args[1]);var instance=live.Load().First();var run=new Runner(live);
+            Task.Run(async()=>{await run.EnsureAdb(default);if(!await run.CheckNetwork(instance,new Progress<string>(Console.WriteLine),default))throw new Exception("Active Wi-Fi was not validated");Console.WriteLine("PASS live Android Wi-Fi validation without reconnecting a healthy network");}).GetAwaiter().GetResult();return;
+        }
         if(args.Length==5&&args[0]=="--smoke-game"){
             var live=new Store(args[1]);var items=live.Load();var instance=items.First();var run=new Runner(live);
             Task.Run(async()=>{try{if(await run.Owner(instance,default) is null)await run.Start(instance,new Progress<string>(Console.WriteLine),default);await run.Import(instance,args.Skip(2).ToArray(),default);await run.OpenGame(instance,default);Console.WriteLine("PASS real instance boot, APK installation and game launch command");}finally{live.Save(items);}}).GetAwaiter().GetResult();return;

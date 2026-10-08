@@ -62,7 +62,7 @@ public sealed class Runner(Store store)
             if(!File.Exists(hw))throw new IOException("Cannot verify effective emulator RAM.");
             var match=Regex.Match(File.ReadAllText(hw),@"(?m)^hw\.ramSize\s*=\s*(\d+)");
             if(!match.Success||!Policy.EffectiveRamMatches(i.RamMb,int.Parse(match.Groups[1].Value)))throw new IOException("The engine changed the requested RAM allocation. Review settings before treating this instance as low-memory.");
-            i.Status="Ready";progress.Report(i.Name+": ready");
+            bool online=await CheckNetwork(i,progress,ct);i.Status=online?"Ready":"Ready · no internet";progress.Report(i.Name+(online?": ready":": Android is ready, but internet is unavailable. Check your PC's connection or reconnect Wi-Fi inside Android."));
         }
         catch(Exception failure)
         {
@@ -84,6 +84,18 @@ public sealed class Runner(Store store)
                     try{using var launcher=Process.GetProcessById(launched.Pid);if(!launcher.HasExited&&Policy.Owns(launched.Pid,launched.Start,launched.Path,launcher.Id,launcher.StartTime.ToUniversalTime(),launcher.MainModule?.FileName??""))launcher.Kill(false);}catch(ArgumentException){}
                     for(int attempt=0;attempt<3;attempt++){await Task.Delay(500,ct);var owned=await Owner(i,ct);if(owned is null)continue;if(owned.Value.Start<launched.Start)throw new IOException("Cleanup ownership predates this launch.");i.Pid=owned.Value.Pid;i.Started=owned.Value.Start;i.ProcessPath=owned.Value.Path;using var vm=Process.GetProcessById(i.Pid);if(Policy.Owns(i.Pid,i.Started,i.ProcessPath,vm.Id,vm.StartTime.ToUniversalTime(),vm.MainModule?.FileName??"")){vm.Kill(false);await vm.WaitForExitAsync(ct);}}
                     i.Pid=0;
+    }
+    public async Task<bool> CheckNetwork(Instance i,IProgress<string> progress,CancellationToken ct)
+    {
+        progress.Report(i.Name+": checking internet connection");
+        Task<string> Shell(CancellationToken token,params string[] args)=>Command(Adb,new[]{"-P",store.AdbPort.ToString(),"-s","emulator-"+i.Port,"shell"}.Concat(args),token,8);
+        try{return await NetworkStartup.EnsureAsync(token=>Shell(token,"dumpsys","connectivity"),async token=>{
+            progress.Report(i.Name+": reconnecting Android Wi-Fi once");
+            try{await Shell(token,"svc","wifi","disable");await Task.Delay(1000,token);}
+            finally{using var restore=new CancellationTokenSource(TimeSpan.FromSeconds(15));await Shell(restore.Token,"svc","wifi","enable");var joined=await Shell(restore.Token,"su","0","cmd","wifi","connect-network","AndroidWifi","open");if(!joined.Contains("Connection initiated",StringComparison.OrdinalIgnoreCase))throw new IOException("Could not rejoin AndroidWifi. Reconnect Wi-Fi inside Android settings.");}
+        },token=>Task.Delay(2000,token),ct);}
+        catch(IOException error){ct.ThrowIfCancellationRequested();progress.Report(i.Name+": internet check could not finish: "+error.Message);return false;}
+        catch(OperationCanceledException)when(!ct.IsCancellationRequested){progress.Report(i.Name+": internet check timed out; Android is still running.");return false;}
     }
     static async Task CaptureLog(Process p,string path)
     {

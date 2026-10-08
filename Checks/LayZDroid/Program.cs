@@ -2,6 +2,15 @@ using LayZDroid;
 int count=0;
 void Check(bool value,string name){if(!value)throw new Exception("FAIL "+name);Console.WriteLine("PASS "+name);count++;}
 void Reject(Action action,string name){try{action();throw new Exception("Accepted unsafe input: "+name);}catch(InvalidDataException){Check(true,name);}}
+const string healthyNetwork="Active default network: 101\nNetworkAgentInfo{network{101} ni{WIFI CONNECTED extra: } nc{[ Transports: WIFI Capabilities: INTERNET&TRUSTED&VALIDATED&NOT_VPN ]}}";
+const string staleNetwork="Active default network: 102\nNetworkAgentInfo{network{101} ni{WIFI CONNECTED extra: } nc{[ Transports: WIFI Capabilities: INTERNET&VALIDATED ]}}\nNetworkAgentInfo{network{102} ni{WIFI CONNECTED extra: } nc{[ Transports: WIFI Capabilities: INTERNET&TRUSTED ]}}\nNetworkRequest [ Capabilities: VALIDATED ]";
+Check(NetworkStartup.IsReady(healthyNetwork),"validated active Wi-Fi is ready");
+Check(!NetworkStartup.IsReady(staleNetwork),"historical network and request validation do not imply internet");
+int reconnects=0,probes=0;
+Check(await NetworkStartup.EnsureAsync(_=>Task.FromResult(healthyNetwork),_=>{reconnects++;return Task.CompletedTask;},_=>Task.CompletedTask,default)&&reconnects==0,"healthy Wi-Fi is never reset");
+Check(await NetworkStartup.EnsureAsync(_=>Task.FromResult(++probes>3?healthyNetwork:staleNetwork),_=>{reconnects++;return Task.CompletedTask;},_=>Task.CompletedTask,default)&&reconnects==1,"stale startup Wi-Fi reconnects once and becomes ready");
+reconnects=0;probes=0;
+Check(!await NetworkStartup.EnsureAsync(_=>{probes++;return Task.FromResult(staleNetwork);},_=>{reconnects++;return Task.CompletedTask;},_=>Task.CompletedTask,default)&&reconnects==1&&probes==13,"offline startup retry is bounded");
 const long Mb=1024*1024;
 Check(!Policy.CanStart(4096*Mb,1700*Mb,5000*Mb,1536,0).Allowed,"physical reserve blocks launch");
 Check(!Policy.CanStart(8192*Mb,6000*Mb,1000*Mb,1536,0).Allowed,"commit capacity blocks launch");

@@ -42,3 +42,22 @@ public static class Policy
     public static bool TrustedAdbListener(int pid,IEnumerable<(int Pid,string Path)> processes,string ownPath)=>processes.Any(p=>p.Pid==pid&&string.Equals(Path.GetFullPath(p.Path),Path.GetFullPath(ownPath),StringComparison.OrdinalIgnoreCase));
     public static bool Owns(int expectedPid,DateTime expectedStart,string expectedPath,int pid,DateTime start,string path)=>expectedPid==pid&&expectedStart==start&&string.Equals(Path.GetFullPath(expectedPath),Path.GetFullPath(path),StringComparison.OrdinalIgnoreCase);
 }
+public static class NetworkStartup
+{
+    public static bool IsReady(string dump)
+    {
+        var active=System.Text.RegularExpressions.Regex.Match(dump,@"(?m)^Active default network:\s*(\d+)");if(!active.Success)return false;
+        string marker="NetworkAgentInfo{network{"+active.Groups[1].Value+"}";int start=dump.IndexOf(marker,StringComparison.Ordinal);if(start<0)return false;
+        int next=dump.IndexOf("NetworkAgentInfo",start+marker.Length,StringComparison.Ordinal);string agent=next<0?dump[start..]:dump[start..next];
+        if(!agent.Contains("ni{WIFI CONNECTED",StringComparison.Ordinal))return false;
+        var caps=System.Text.RegularExpressions.Regex.Match(agent,@"nc\{\[\s*Transports:\s*WIFI\s+Capabilities:\s*([A-Z_&]+)");
+        return caps.Success&&caps.Groups[1].Value.Split('&').Contains("VALIDATED");
+    }
+    public static async Task<bool> EnsureAsync(Func<CancellationToken,Task<string>> read,Func<CancellationToken,Task> reconnect,Func<CancellationToken,Task> wait,CancellationToken ct)
+    {
+        for(int n=0;n<3;n++){ct.ThrowIfCancellationRequested();if(IsReady(await read(ct)))return true;await wait(ct);}
+        await reconnect(ct);
+        for(int n=0;n<10;n++){ct.ThrowIfCancellationRequested();if(IsReady(await read(ct)))return true;await wait(ct);}
+        return false;
+    }
+}
