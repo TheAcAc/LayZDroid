@@ -24,6 +24,19 @@ Check(!Policy.Owns(7,DateTime.UnixEpoch,"a.exe",8,DateTime.UnixEpoch,"a.exe"),"f
 Check(!Policy.Owns(7,DateTime.UnixEpoch,"a.exe",7,DateTime.UnixEpoch.AddSeconds(1),"a.exe"),"reused PID rejected");
 Check(Policy.Owns(7,DateTime.UnixEpoch,"a.exe",7,DateTime.UnixEpoch,"a.exe"),"exact owner accepted");
 Console.WriteLine($"PASS all {count} LayZDroid checks");
+Check(Policy.SelectAdbPort(5038,new HashSet<int>{5038},_=>false)==5039,"foreign ADB listener gets a separate port");
+Check(Policy.SelectAdbPort(5039,new HashSet<int>{5039},p=>p==5039)==5039,"existing owned ADB port is reused");
+Check(Policy.SelectAdbPort(5038,new HashSet<int>{5038},_=>throw new IOException("unverifiable listener"))==5039,"unverifiable occupied port is skipped");
+var deleteRoot=Path.Combine(Path.GetTempPath(),"LayZDroidDelete-"+Guid.NewGuid().ToString("N"));
+try{
+ var deleteStore=new Store(deleteRoot);var first=new Instance{Port=5580};var second=new Instance{Port=5582};var items=new List<Instance>{first,second};
+ deleteStore.Configure(first);deleteStore.Configure(second);deleteStore.Save(items);deleteStore.SetAdbPort(5039);
+ Check(new Store(deleteRoot).AdbPort==5039,"ADB port survives launcher restart");
+ first.Pid=123;Reject(()=>deleteStore.DeleteInstance(items,first),"running instance deletion refused");first.Pid=0;
+ deleteStore.DeleteInstance(items,first);
+ Check(!Directory.Exists(deleteStore.InstancePath(first))&&!File.Exists(Path.Combine(deleteStore.Avds,first.AvdName+".ini")),"delete removes selected instance files");
+ Check(Directory.Exists(deleteStore.InstancePath(second))&&deleteStore.Load().Single().Id==second.Id,"delete preserves other instance and saved selection");
+}finally{if(Directory.Exists(deleteRoot))Directory.Delete(deleteRoot,true);}
 Reject(()=>ApkMetadata.ReadManifest([0,1,2]),"truncated Android manifest rejected");
 Reject(()=>ApkMetadata.ReadManifest(new byte[8]),"non-Android binary rejected");
 var fixture=ManifestFixture();Check(ApkMetadata.ReadManifest(fixture).Package=="ata.squid.kaw","Android package parsed from manifest");

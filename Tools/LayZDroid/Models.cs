@@ -12,7 +12,9 @@ public sealed class Store
 {
     public string Root{get;} public string Sdk=>Path.Combine(Root,"runtime","sdk"); public string Avds=>Path.Combine(Root,"instances");
     public string Config=>Path.Combine(Root,"instances.json");
-    public Store(string? root=null){Root=Path.GetFullPath(root??Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"LayZDroid"));Directory.CreateDirectory(Root);}
+    public int AdbPort{get;private set;}=5038;
+    public Store(string? root=null){Root=Path.GetFullPath(root??Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"LayZDroid"));Directory.CreateDirectory(Root);var portFile=Path.Combine(Root,"adb-port.txt");if(File.Exists(portFile)){if(!int.TryParse(File.ReadAllText(portFile),out int port)||port<5038||port>5068)throw new InvalidDataException("Invalid saved emulator connection.");AdbPort=port;}}
+    public void SetAdbPort(int port){if(port<5038||port>5068)throw new InvalidDataException("Invalid emulator connection port.");var file=Path.Combine(Root,"adb-port.txt");File.WriteAllText(file+".tmp",port.ToString());File.Move(file+".tmp",file,true);AdbPort=port;}
     public List<Instance> Load()
     {
         if(!File.Exists(Config))return [];
@@ -23,6 +25,17 @@ public sealed class Store
     }
     public void Save(List<Instance> items){var tmp=Config+".tmp";File.WriteAllText(tmp,JsonSerializer.Serialize(items,new JsonSerializerOptions{WriteIndented=true}));File.Move(tmp,Config,true);}
     public string InstancePath(Instance i)=>Path.Combine(Avds,i.AvdName+".avd");
+    public void DeleteInstance(List<Instance> items,Instance i)
+    {
+        if(!items.Contains(i)||i.Pid!=0)throw new InvalidDataException("Stop the selected instance before deleting it.");
+        var path=Path.GetFullPath(InstancePath(i));var prefix=Path.GetFullPath(Avds).TrimEnd(Path.DirectorySeparatorChar)+Path.DirectorySeparatorChar;
+        if(!path.StartsWith(prefix,StringComparison.OrdinalIgnoreCase))throw new InvalidDataException("Instance path is outside its data folder.");
+        void CheckTree(string directory){if((File.GetAttributes(directory)&FileAttributes.ReparsePoint)!=0)throw new InvalidDataException("Instance contains a linked folder; deletion requires manual review.");foreach(var child in Directory.EnumerateFileSystemEntries(directory)){if((File.GetAttributes(child)&FileAttributes.ReparsePoint)!=0)throw new InvalidDataException("Instance contains a linked file; deletion requires manual review.");if(Directory.Exists(child))CheckTree(child);}}
+        if(Directory.Exists(Avds)&&((File.GetAttributes(Avds)&FileAttributes.ReparsePoint)!=0))throw new InvalidDataException("Instances folder is linked; deletion requires manual review.");
+        if(Directory.Exists(path))CheckTree(path);
+        var ini=Path.Combine(Avds,i.AvdName+".ini");if(File.Exists(ini)&&(File.GetAttributes(ini)&FileAttributes.ReparsePoint)!=0)throw new InvalidDataException("Instance configuration is linked.");
+        if(Directory.Exists(path))Directory.Delete(path,true);if(File.Exists(ini))File.Delete(ini);items.Remove(i);Save(items);
+    }
     public void Configure(Instance i)
     {
         Policy.ValidateSettings(i.RamMb,i.Cores,i.Width,i.Height);

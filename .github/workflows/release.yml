@@ -43,9 +43,9 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          name: LayZDroid 0.1.0 Preview 1
+          name: LayZDroid 0.1.0 Preview 2
           prerelease: true
-          body_path: CHANGES-0.1.0-preview.1.md
+          body_path: CHANGES-0.1.0-preview.2.md
           files: |
             publish/LayZDroid.exe
             publish/SHA256SUMS.txt

@@ -31,6 +31,13 @@ public static class Policy
     public static void ValidateSettings(int ram,int cores,int width,int height)
     {if(ram is <768 or >8192||cores is <1 or >16||!((width==480&&height==854)||(width==720&&height==1280)))throw new InvalidDataException("Use 768–8192 MB RAM, 1–16 cores and a supported portrait resolution.");}
     public static bool EffectiveRamMatches(int requested,int effective)=>requested==effective;
+    public static int SelectAdbPort(int preferred,ISet<int> busy,Func<int,bool> trusted)
+    {
+        bool IsTrusted(int port){try{return trusted(port);}catch(IOException){return false;}}
+        foreach(int port in new[]{preferred}.Concat(Enumerable.Range(5038,31)).Distinct())
+            if(port>=5038&&port<=5068&&(!busy.Contains(port)||IsTrusted(port)))return port;
+        throw new IOException("No free emulator connection is available. Close another emulator manager and try again.");
+    }
     public static string[] LaunchArguments(Instance i)=>["-avd",i.AvdName,"-port",i.Port.ToString(),"-memory",i.RamMb.ToString(),"-cores",i.Cores.ToString(),"-gpu",i.Gpu,"-lowram","-no-snapshot","-no-boot-anim","-no-audio"];
     public static bool TrustedAdbListener(int pid,IEnumerable<(int Pid,string Path)> processes,string ownPath)=>processes.Any(p=>p.Pid==pid&&string.Equals(Path.GetFullPath(p.Path),Path.GetFullPath(ownPath),StringComparison.OrdinalIgnoreCase));
     public static bool Owns(int expectedPid,DateTime expectedStart,string expectedPath,int pid,DateTime start,string path)=>expectedPid==pid&&expectedStart==start&&string.Equals(Path.GetFullPath(expectedPath),Path.GetFullPath(path),StringComparison.OrdinalIgnoreCase);

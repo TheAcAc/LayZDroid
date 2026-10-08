@@ -15,13 +15,13 @@ public sealed class MainForm:Form
     readonly System.Windows.Forms.Timer timer=new(){Interval=3000};CancellationTokenSource? operation;bool busy;Guid? loaded;
     public MainForm(Store storage)
     {
-        store=storage;runner=new(store);instances=store.Load();Text="LayZDroid · 0.1.0 Preview";Width=1080;Height=720;MinimumSize=new Size(840,570);BackColor=background;ForeColor=Color.FromArgb(237,225,249);Font=new Font("Segoe UI",10);StartPosition=FormStartPosition.CenterScreen;
+        store=storage;runner=new(store);instances=store.Load();Text="LayZDroid · 0.1.0 Preview 2";Width=1080;Height=720;MinimumSize=new Size(840,570);BackColor=background;ForeColor=Color.FromArgb(237,225,249);Font=new Font("Segoe UI",10);StartPosition=FormStartPosition.CenterScreen;
         var layout=new TableLayoutPanel{Dock=DockStyle.Fill,RowCount=6,ColumnCount=1,Padding=new Padding(18)};
         foreach(int h in new[]{65,90,75})layout.RowStyles.Add(new RowStyle(SizeType.Absolute,h));layout.RowStyles.Add(new RowStyle(SizeType.Percent,100));layout.RowStyles.Add(new RowStyle(SizeType.Absolute,85));layout.RowStyles.Add(new RowStyle(SizeType.Absolute,65));Controls.Add(layout);
         var title=new Label{Text="LayZDroid",Font=new Font("Segoe UI Semibold",25),AutoSize=true};var heading=new FlowLayoutPanel{Dock=DockStyle.Fill};heading.Controls.Add(title);heading.Controls.Add(new Label{Text="Built for LayZ. No launcher ads. No bundled app store.\nOne focused alternative to a general-purpose BlueStacks setup.",AutoSize=true,Margin=new Padding(24,10,0,0)});layout.Controls.Add(heading,0,0);
         var tools=new FlowLayoutPanel{Dock=DockStyle.Fill,WrapContents=true};
         tools.Controls.Add(Button("Set up runtime",Setup));tools.Controls.Add(Button("Add instance",Add));tools.Controls.Add(Button("Start selected",()=>_ = Run(async ct=>{await runner.Start(Selected(),Progress(),ct);store.Save(instances);})));tools.Controls.Add(Button("Start all",()=>_ = Run(async ct=>{foreach(var i in instances){ct.ThrowIfCancellationRequested();if(await runner.Owner(i,ct) is null){await runner.Start(i,Progress(),ct);store.Save(instances);}}})));
-        tools.Controls.Add(Button("Stop selected",()=>_ = Run(async ct=>{await runner.Stop(Selected(),ct);store.Save(instances);})));tools.Controls.Add(Button("Open KaW",()=>_ = Run(ct=>runner.OpenGame(Selected(),ct))));tools.Controls.Add(Button("Import APK",Import));tools.Controls.Add(Button("Open LayZ",OpenLayZ));
+        tools.Controls.Add(Button("Stop selected",()=>_ = Run(async ct=>{await runner.Stop(Selected(),ct);store.Save(instances);})));tools.Controls.Add(Button("Delete selected",Delete));tools.Controls.Add(Button("Open KaW",()=>_ = Run(async ct=>{var i=Selected();if(await runner.Owner(i,ct) is null)await runner.Start(i,Progress(),ct);await runner.OpenGame(i,ct);})));tools.Controls.Add(Button("Import APK",Import));tools.Controls.Add(Button("Open LayZ",OpenLayZ));
         cancel=new Button{Text="Cancel task",AutoSize=true,Enabled=false,BackColor=surface,ForeColor=ForeColor,FlatStyle=FlatStyle.Flat};cancel.Click+=(_,_)=>operation?.Cancel();tools.Controls.Add(cancel);layout.Controls.Add(tools,0,1);
         size.Items.AddRange(["480 × 854","720 × 1280"]);size.SelectedIndex=0;gpu.Items.AddRange(["Host GPU","Software GPU"]);gpu.SelectedIndex=0;
         var settings=new FlowLayoutPanel{Dock=DockStyle.Fill,WrapContents=true};void Field(string text,Control control){settings.Controls.Add(new Label{Text=text,AutoSize=true,Margin=new Padding(5,8,5,0)});settings.Controls.Add(control);}
@@ -45,6 +45,7 @@ public sealed class MainForm:Form
     void RefreshRows()
     {
         Guid? selected=grid.CurrentRow?.Tag is Instance old?old.Id:null;
+        foreach(var row in grid.Rows.Cast<DataGridViewRow>().Where(r=>r.Tag is Instance missing&&!instances.Contains(missing)).ToArray())grid.Rows.Remove(row);
         foreach(var i in instances)
         {
             string memory="—";
@@ -60,6 +61,11 @@ public sealed class MainForm:Form
         var busyPorts=Runner.BusyPorts();foreach(var i in instances){busyPorts.Add(i.Port);busyPorts.Add(i.Port+1);}var item=new Instance{Name="LayZDroid "+(instances.Count+1),Port=Policy.NextPort(busyPorts)};store.Configure(item);instances.Add(item);store.Save(instances);RefreshRows();grid.CurrentCell=grid.Rows[^1].Cells[0];status.Text="Fresh instance created. Start it, then import your KaW APK.";
     }
     void SaveSettings()=>_ = Run(async ct=>{var i=Selected();if(await runner.Owner(i,ct) is not null)throw new IOException("Stop this instance before changing its settings.");i.Name=string.IsNullOrWhiteSpace(name.Text)?"LayZDroid":name.Text.Trim();i.RamMb=(int)ram.Value;i.Cores=(int)cores.Value;i.Width=size.SelectedIndex==0?480:720;i.Height=size.SelectedIndex==0?854:1280;i.Gpu=gpu.SelectedIndex==0?"host":"software";store.Configure(i);store.Save(instances);});
+    void Delete()
+    {
+        var i=Selected();if(MessageBox.Show(this,$"Delete {i.Name}?\n\nThis removes its installed games, sign-ins and saved Android data. It cannot be undone. Other instances are kept.","Delete instance",MessageBoxButtons.YesNo,MessageBoxIcon.Warning,MessageBoxDefaultButton.Button2)!=DialogResult.Yes)return;
+        _=Run(async ct=>{if(await runner.Owner(i,ct) is not null)throw new IOException("Stop this instance, then choose Delete selected again.");i.Pid=0;store.DeleteInstance(instances,i);loaded=null;});
+    }
     void Setup()
     {
         if(RuntimeSetup.Ready(store)){status.Text="Runtime is already ready.";return;}
@@ -71,7 +77,7 @@ public sealed class MainForm:Form
     void Import()
     {
         var i=Selected();using var picker=new OpenFileDialog{Filter="Android APK files|*.apk",Multiselect=true,Title="Select the base APK and all required split APKs"};if(picker.ShowDialog(this)!=DialogResult.OK)return;
-        _=Run(ct=>runner.Import(i,picker.FileNames,ct));
+        _=Run(async ct=>{if(await runner.Owner(i,ct) is null)await runner.Start(i,Progress(),ct);await runner.Import(i,picker.FileNames,ct);});
     }
     void OpenLayZ()
     {
@@ -82,7 +88,7 @@ public sealed class MainForm:Form
     void Export()
     {
         using var pick=new SaveFileDialog{Filter="JSON report|*.json",FileName="LayZDroid-test-report.json"};if(pick.ShowDialog(this)!=DialogResult.OK)return;
-        var m=HostMemory.Read();File.WriteAllText(pick.FileName,JsonSerializer.Serialize(new{Product="LayZDroid",Version="0.1.0-preview.1",Date=DateTimeOffset.UtcNow,Windows=Environment.OSVersion.VersionString,HostMemoryMb=m.Total/1048576,AvailableMemoryMb=m.Available/1048576,CommitAvailableMb=m.CommitRemaining/1048576,RuntimeReady=RuntimeSetup.Ready(store),Instances=instances.Select(i=>new{i.Name,i.Status,i.RamMb,i.Cores,i.Width,i.Height,i.Gpu}),Qualification="Preview; actual low-spec performance not yet verified"},new JsonSerializerOptions{WriteIndented=true}));status.Text="Test report saved. It contains settings and host resources, without game credentials or account disks.";
+        var m=HostMemory.Read();File.WriteAllText(pick.FileName,JsonSerializer.Serialize(new{Product="LayZDroid",Version="0.1.0-preview.2",Date=DateTimeOffset.UtcNow,Windows=Environment.OSVersion.VersionString,HostMemoryMb=m.Total/1048576,AvailableMemoryMb=m.Available/1048576,CommitAvailableMb=m.CommitRemaining/1048576,RuntimeReady=RuntimeSetup.Ready(store),Instances=instances.Select(i=>new{i.Name,i.Status,i.RamMb,i.Cores,i.Width,i.Height,i.Gpu}),Qualification="Preview; actual low-spec performance not yet verified"},new JsonSerializerOptions{WriteIndented=true}));status.Text="Test report saved. It contains settings and host resources, without game credentials or account disks.";
     }
     void ChooseFolder()
     {

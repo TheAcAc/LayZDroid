@@ -16,7 +16,7 @@ public sealed class Runner(Store store)
     {
         var info=new ProcessStartInfo(exe){UseShellExecute=false,CreateNoWindow=true,RedirectStandardOutput=true,RedirectStandardError=true,WorkingDirectory=Path.GetDirectoryName(exe)!};foreach(var a in args)info.ArgumentList.Add(a);
         info.Environment["ANDROID_SDK_ROOT"]=store.Sdk;info.Environment["ANDROID_HOME"]=store.Sdk;info.Environment["ANDROID_AVD_HOME"]=store.Avds;
-        info.Environment["ANDROID_ADB_SERVER_PORT"]="5038";info.Environment["ADB_SERVER_SOCKET"]="tcp:127.0.0.1:5038";return info;
+        info.Environment["ANDROID_ADB_SERVER_PORT"]=store.AdbPort.ToString();info.Environment["ADB_SERVER_SOCKET"]="tcp:127.0.0.1:"+store.AdbPort;return info;
     }
     public async Task<string> Command(string exe,IEnumerable<string> args,CancellationToken ct,int seconds=30)
     {
@@ -27,14 +27,10 @@ public sealed class Runner(Store store)
     }
     public async Task EnsureAdb(CancellationToken ct)
     {
-        if(BusyPorts().Contains(5038))
-        {
-            // Never let a differing CLI binary automatically restart another application's server.
-            var owners=await Task.Run(()=>Inventory("Name='adb.exe' OR Name='HD-Adb.exe'"),ct);
-            var pid=TcpOwnership.ListenerPid(5038);
-            if(!Policy.TrustedAdbListener(pid,owners.Select(p=>(p.Pid,p.Path)),Adb))throw new IOException("Port 5038 is already in use by another ADB installation. Close that server yourself before using LayZDroid; it will not be stopped automatically.");
-        }
-        await Command(Adb,["-P","5038","start-server"],ct);
+        var busy=BusyPorts();var owners=await Task.Run(()=>Inventory("Name='adb.exe' OR Name='HD-Adb.exe'"),ct);
+        int port=Policy.SelectAdbPort(store.AdbPort,busy,p=>Policy.TrustedAdbListener(TcpOwnership.ListenerPid(p),owners.Select(o=>(o.Pid,o.Path)),Adb));
+        if(port!=store.AdbPort)store.SetAdbPort(port);
+        await Command(Adb,["-P",store.AdbPort.ToString(),"start-server"],ct);
     }
     public async Task Start(Instance i,IProgress<string> progress,CancellationToken ct)
     {
@@ -58,7 +54,7 @@ public sealed class Runner(Store store)
             {
                 deadline.Token.ThrowIfCancellationRequested();var owner=await Owner(i,deadline.Token);
                 if(owner is not null){i.Pid=owner.Value.Pid;i.Started=owner.Value.Start;i.ProcessPath=owner.Value.Path;}
-                try{if(owner is not null&&(await Command(Adb,["-P","5038","-s","emulator-"+i.Port,"shell","getprop","sys.boot_completed"],deadline.Token,8)).Trim()=="1")break;}catch(IOException){}
+                try{if(owner is not null&&(await Command(Adb,["-P",store.AdbPort.ToString(),"-s","emulator-"+i.Port,"shell","getprop","sys.boot_completed"],deadline.Token,8)).Trim()=="1")break;}catch(IOException){}
                 if(p.HasExited&&owner is null)throw new IOException("Emulator exited. See diagnostics for details.");
                 await Task.Delay(1500,deadline.Token);
             }
@@ -124,27 +120,28 @@ public sealed class Runner(Store store)
         var result=new List<(int,DateTime,string,string)>();
         var type=Type.GetTypeFromProgID("WbemScripting.SWbemLocator")??throw new IOException("Windows process inventory is unavailable.");
         dynamic locator=Activator.CreateInstance(type)!;dynamic services=locator.ConnectServer(".","root\\cimv2");dynamic rows=services.ExecQuery("SELECT ProcessId, ExecutablePath, CommandLine FROM Win32_Process WHERE "+filter,"WQL",0);
-        try{foreach(dynamic row in rows){try{int pid=(int)(uint)row.ProcessId;using var p=Process.GetProcessById(pid);if(p.HasExited)continue;string path=(string?)row.ExecutablePath??throw new IOException("Process path unavailable.");result.Add((pid,p.StartTime.ToUniversalTime(),path,(string?)row.CommandLine??""));}catch(ArgumentException){}}}
+        try{foreach(dynamic row in rows){try{int pid=Convert.ToInt32(row.Properties_.Item("ProcessId").Value);using var p=Process.GetProcessById(pid);if(p.HasExited)continue;string path=Convert.ToString(row.Properties_.Item("ExecutablePath").Value)??"";if(string.IsNullOrWhiteSpace(path))throw new IOException("Cannot verify Windows process "+pid+". Instance startup, stopping and deletion are blocked until its identity can be checked.");string args=Convert.ToString(row.Properties_.Item("CommandLine").Value)??"";result.Add((pid,p.StartTime.ToUniversalTime(),path,args));}catch(ArgumentException){}finally{Marshal.FinalReleaseComObject(row);}}}
         finally{Marshal.FinalReleaseComObject(rows);Marshal.FinalReleaseComObject(services);Marshal.FinalReleaseComObject(locator);}
         return result;
     }
     public async Task OpenGame(Instance i,CancellationToken ct)
     {
         if(await Owner(i,ct) is null)throw new IOException("Start this instance first.");await EnsureAdb(ct);
-        if(string.IsNullOrEmpty(i.Package))throw new IOException("Import the KaW APK or set its package first.");
-        var component=(await Command(Adb,["-P","5038","-s","emulator-"+i.Port,"shell","cmd","package","resolve-activity","--brief",i.Package],ct)).Trim().Split('\n').Last();
+        if(string.IsNullOrEmpty(i.Package)){var installed=await Command(Adb,["-P",store.AdbPort.ToString(),"-s","emulator-"+i.Port,"shell","pm","path","ata.squid.kaw"],ct);if(installed.TrimStart().StartsWith("package:",StringComparison.Ordinal))i.Package="ata.squid.kaw";else throw new IOException("KaW is not installed on this instance yet. Click Import APK and select all three downloaded KaW files.");}
+        var component=(await Command(Adb,["-P",store.AdbPort.ToString(),"-s","emulator-"+i.Port,"shell","cmd","package","resolve-activity","--brief",i.Package],ct)).Trim().Split('\n').Last();
         if(!component.Contains('/')||component.Any(char.IsWhiteSpace))throw new IOException("No launchable game activity found. Check the installed APK.");
-        await Command(Adb,["-P","5038","-s","emulator-"+i.Port,"shell","am","start","-n",component],ct);
+        await Command(Adb,["-P",store.AdbPort.ToString(),"-s","emulator-"+i.Port,"shell","am","start","-n",component],ct);
     }
     public async Task Import(Instance i,string[] apks,CancellationToken ct)
     {
         if(await Owner(i,ct) is null)throw new IOException("Start this instance before importing APKs.");
         if(apks.Length==0)throw new IOException("Select the base APK and its required splits.");
+        apks=apks.Select(Path.GetFullPath).ToArray();
         var metadata=apks.Select(ApkMetadata.Read).ToArray();var package=metadata[0].Package;
         if(metadata.Any(m=>m.Package!=package||m.Version!=metadata[0].Version))throw new IOException("APK splits must have the same package and version.");
         if(metadata.Any(m=>m.MinimumApi>34))throw new IOException("This APK needs a newer Android version than this preview.");
         var abis=metadata.SelectMany(m=>m.Abis).Distinct().ToArray();if(abis.Length>0&&!abis.Contains("x86_64"))throw new IOException("This APK requires ARM native libraries. This preview uses x86_64 and has no ARM translation layer.");
-        await EnsureAdb(ct);var args=new List<string>{"-P","5038","-s","emulator-"+i.Port,apks.Length==1?"install":"install-multiple","-r"};args.AddRange(apks);
+        await EnsureAdb(ct);var args=new List<string>{"-P",store.AdbPort.ToString(),"-s","emulator-"+i.Port,apks.Length==1?"install":"install-multiple","-r"};args.AddRange(apks);
         await Command(Adb,args,ct,120);i.Package=package;
     }
 }
