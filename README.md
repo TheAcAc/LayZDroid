@@ -15,16 +15,24 @@ A focused Windows alternative to a general-purpose BlueStacks setup. Create fres
 
 **RAM/CPU savings against BlueStacks have not been measured yet.** This is a launcher/configuration preview using an upstream AOSP Android 14 image, not a finished custom stripped Android build. One instance on a 4 GB PC is the target; two remains a stretch target for testing.
 
-## Run it
+## Quick start
 
-1. Download `LayZDroid.exe` from the preview release and run it on 64-bit Windows 10/11. No separate .NET installation is needed.
-2. Choose **Set up runtime**, read the upstream terms and accept them if appropriate. Runtime packages download directly from Google (about 1.2 GB). Allow at least 6 GB free disk space. **Choose data folder** can select another drive; close and reopen afterward.
-3. Enable CPU virtualization and Windows Hypervisor Platform if the prerequisite check asks; a Windows restart may be needed.
-4. **Add instance**, then **Start selected**. Import your KaW base APK and all required split APKs together. APK files and signed-in accounts are not included.
-5. Choose **Open KaW** and sign in. **Open LayZ** launches your installed LayZ EXE with the correct ADB settings; close an already-running LayZ first.
-6. Try your workload and use **Export test report**. Include whether KaW is responsive, the number of instances and any failure messages when reporting results.
+**You need:** 64-bit Windows 10/11, at least 6 GB free disk space, an internet connection and your own KaW APK files. LayZDroid does not include KaW or a signed-in account.
 
-Closing the manager leaves ready emulator instances running. Use **Stop selected** to stop an instance. Do not use two managers or automatic recovery controllers to start/stop the same VM. Full shared lifecycle/recovery integration is not implemented in this preview.
+1. **Download and open LayZDroid.** Download [LayZDroid.exe](https://github.com/TheAcAc/LayZDroid/releases/download/v0.1.0-preview.1/LayZDroid.exe), then double-click it. No separate .NET installation is needed.
+2. **Install the Android runtime once.** Click **Set up runtime**, read the terms, then accept them to enable **Download runtime**. Wait for setup to finish; it downloads about 1.2 GB.
+3. **Create and start an emulator.** Click **Add instance**, select its row in the list, then click **Start selected**. Wait for Android to finish starting. Begin with one instance and the default settings.
+4. **Install KaW.** With that instance selected, click **Import APK** and select your KaW APK. If your copy has multiple files, select the base APK and all required split APKs together in the same file picker.
+5. **Open the game.** Click **Open KaW** and sign in inside the emulator.
+6. **Connect LayZ.** Close LayZ if it is already running. Click **Open LayZ** and select your installed LayZ `.exe`; LayZDroid supplies the connection settings automatically.
+
+**If startup asks for virtualization:** enable CPU virtualization in your PC's BIOS/UEFI and **Windows Hypervisor Platform** in Windows Features, then restart Windows and try **Start selected** again.
+
+**Prefer another drive?** Before runtime setup, click **Choose data folder**, choose a folder, then close and reopen LayZDroid. Existing instances stay in their original folder.
+
+**When finished:** click **Stop selected** to shut down an emulator. Closing LayZDroid alone leaves running instances open. To share test results, click **Export test report** and mention how many instances you ran, whether KaW was responsive and any error messages.
+
+Use one manager to control each instance. Shared automatic recovery with LayZ is still being developed.
 
 ## Preview boundaries
 
