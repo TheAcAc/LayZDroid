@@ -5,6 +5,20 @@ static class Checks
     [STAThread]static void Main(string[] args)
     {
         ApplicationConfiguration.Initialize();
+        if(args.Length==3&&args[0]=="--apply-standard-display"){
+            var live=new Store(args[1]);var items=live.Load();var instance=items.Single(i=>i.Port==int.Parse(args[2]));var run=new Runner(live);
+            Task.Run(async()=>{
+                try {
+                    if(await run.Owner(instance,default) is not null)await run.Stop(instance,default);
+                    foreach(var item in items){if(await run.Owner(item,default) is not null)throw new IOException("Another instance is running; stop it before applying its display.");live.Configure(item);}
+                    live.Save(items);
+                    await run.Start(instance,new Progress<string>(Console.WriteLine),default);
+                    await run.EnsureDisplay(instance,default);
+                    await run.OpenGame(instance,default);
+                    Console.WriteLine("PASS standard display verified on running instance; all account identities preserved");
+                } finally {live.Save(items);}
+            }).GetAwaiter().GetResult();return;
+        }
         if(args.Length==2&&args[0]=="--check-network"){
             var live=new Store(args[1]);var instance=live.Load().First();var run=new Runner(live);
             Task.Run(async()=>{await run.EnsureAdb(default);if(!await run.CheckNetwork(instance,new Progress<string>(Console.WriteLine),default))throw new Exception("Active Wi-Fi was not validated");Console.WriteLine("PASS live Android Wi-Fi validation without reconnecting a healthy network");}).GetAwaiter().GetResult();return;

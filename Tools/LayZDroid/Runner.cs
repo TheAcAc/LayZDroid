@@ -62,6 +62,7 @@ public sealed class Runner(Store store)
             if(!File.Exists(hw))throw new IOException("Cannot verify effective emulator RAM.");
             var match=Regex.Match(File.ReadAllText(hw),@"(?m)^hw\.ramSize\s*=\s*(\d+)");
             if(!match.Success||!Policy.EffectiveRamMatches(i.RamMb,int.Parse(match.Groups[1].Value)))throw new IOException("The engine changed the requested RAM allocation. Review settings before treating this instance as low-memory.");
+            await EnsureDisplay(i,ct);
             bool online=await CheckNetwork(i,progress,ct);i.Status=online?"Ready":"Ready · no internet";progress.Report(i.Name+(online?": ready":": Android is ready, but internet is unavailable. Check your PC's connection or reconnect Wi-Fi inside Android."));
         }
         catch(Exception failure)
@@ -84,6 +85,17 @@ public sealed class Runner(Store store)
                     try{using var launcher=Process.GetProcessById(launched.Pid);if(!launcher.HasExited&&Policy.Owns(launched.Pid,launched.Start,launched.Path,launcher.Id,launcher.StartTime.ToUniversalTime(),launcher.MainModule?.FileName??""))launcher.Kill(false);}catch(ArgumentException){}
                     for(int attempt=0;attempt<3;attempt++){await Task.Delay(500,ct);var owned=await Owner(i,ct);if(owned is null)continue;if(owned.Value.Start<launched.Start)throw new IOException("Cleanup ownership predates this launch.");i.Pid=owned.Value.Pid;i.Started=owned.Value.Start;i.ProcessPath=owned.Value.Path;using var vm=Process.GetProcessById(i.Pid);if(Policy.Owns(i.Pid,i.Started,i.ProcessPath,vm.Id,vm.StartTime.ToUniversalTime(),vm.MainModule?.FileName??"")){vm.Kill(false);await vm.WaitForExitAsync(ct);}}
                     i.Pid=0;
+    }
+    public async Task EnsureDisplay(Instance i,CancellationToken ct)
+    {
+        Task<string> Shell(params string[] args)=>Command(Adb,new[]{"-P",store.AdbPort.ToString(),"-s","emulator-"+i.Port,"shell"}.Concat(args),ct,15);
+        // Android keeps guest overrides in account storage across emulator restarts.
+        await Shell("wm","size","reset");
+        await Shell("wm","density","240");
+        var size=await Shell("wm","size");var density=await Shell("wm","density");
+        string Effective(string output,string label){var matches=Regex.Matches(output,@"(?m)^(?:Physical|Override) "+label+@":\s*([^\r\n]+)");return matches.Count==0?"":matches[^1].Groups[1].Value.Trim();}
+        if(Effective(size,"size")!="900x1600"||Effective(density,"density")!="240")
+            throw new IOException("Cannot verify the standard 900 × 1600 / 240 DPI display. Restart this instance before using LayZ.");
     }
     public async Task<bool> CheckNetwork(Instance i,IProgress<string> progress,CancellationToken ct)
     {

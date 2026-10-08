@@ -29,7 +29,7 @@ public static class Policy
         return path;
     }
     public static void ValidateSettings(int ram,int cores,int width,int height)
-    {if(ram is <768 or >8192||cores is <1 or >16||!((width==480&&height==854)||(width==720&&height==1280)))throw new InvalidDataException("Use 768–8192 MB RAM, 1–16 cores and a supported portrait resolution.");}
+    {if(ram is <768 or >8192||cores is <1 or >16||!((width==480&&height==854)||(width==720&&height==1280)||(width==900&&height==1600)))throw new InvalidDataException("Use 768–8192 MB RAM, 1–16 cores and a supported portrait resolution.");}
     public static bool EffectiveRamMatches(int requested,int effective)=>requested==effective;
     public static int SelectAdbPort(int preferred,ISet<int> busy,Func<int,bool> trusted)
     {

@@ -11,6 +11,15 @@ Check(await NetworkStartup.EnsureAsync(_=>Task.FromResult(healthyNetwork),_=>{re
 Check(await NetworkStartup.EnsureAsync(_=>Task.FromResult(++probes>3?healthyNetwork:staleNetwork),_=>{reconnects++;return Task.CompletedTask;},_=>Task.CompletedTask,default)&&reconnects==1,"stale startup Wi-Fi reconnects once and becomes ready");
 reconnects=0;probes=0;
 Check(!await NetworkStartup.EnsureAsync(_=>{probes++;return Task.FromResult(staleNetwork);},_=>{reconnects++;return Task.CompletedTask;},_=>Task.CompletedTask,default)&&reconnects==1&&probes==13,"offline startup retry is bounded");
+var displayRoot=Path.Combine(Path.GetTempPath(),"LayZDroidDisplay-"+Guid.NewGuid().ToString("N"));
+try {
+ var displayStore=new Store(displayRoot);var legacy=new Instance{Port=5580,Width=480,Height=854,Package="ata.squid.kaw",RamMb=1536,Cores=2};
+ displayStore.Configure(legacy);var disk=Path.Combine(displayStore.InstancePath(legacy),"account-marker");File.WriteAllText(disk,"preserved");displayStore.Save([legacy]);
+ var loaded=displayStore.Load().Single();
+ Check(loaded.Width==900&&loaded.Height==1600&&loaded.Id==legacy.Id&&loaded.Package==legacy.Package&&loaded.RamMb==1536&&loaded.Cores==2,"legacy display normalizes without changing account identity or resources");
+ displayStore.Configure(loaded);Check(File.ReadAllText(disk)=="preserved","display migration preserves existing account storage");
+ Check(new Instance().Width==900&&new Instance().Height==1600,"new instance uses standard display");
+} finally {if(Directory.Exists(displayRoot))Directory.Delete(displayRoot,true);}
 const long Mb=1024*1024;
 Check(!Policy.CanStart(4096*Mb,1700*Mb,5000*Mb,1536,0).Allowed,"physical reserve blocks launch");
 Check(!Policy.CanStart(8192*Mb,6000*Mb,1000*Mb,1536,0).Allowed,"commit capacity blocks launch");
@@ -26,6 +35,7 @@ Reject(()=>Policy.ExtractionPath(root,"x:stream"),"alternate data stream rejecte
 Reject(()=>Policy.ValidateSettings(512,2,480,854),"unsupported RAM rejected");
 Reject(()=>Policy.ValidateSettings(1536,0,480,854),"invalid cores rejected");
 Policy.ValidateSettings(1536,1,480,854);Check(true,"preview settings accepted");
+Policy.ValidateSettings(1536,1,900,1600);Check(true,"900 by 1600 portrait display accepted");
 Policy.ValidateSettings(768,1,480,854);Check(true,"experimental 768 MB setting accepted with explicit low-RAM engine option");
 Check(!Policy.EffectiveRamMatches(1024,2560),"engine RAM clamp cannot pass");
 Check(Policy.EffectiveRamMatches(1536,1536),"matching effective RAM passes");
@@ -40,6 +50,7 @@ var deleteRoot=Path.Combine(Path.GetTempPath(),"LayZDroidDelete-"+Guid.NewGuid()
 try{
  var deleteStore=new Store(deleteRoot);var first=new Instance{Port=5580};var second=new Instance{Port=5582};var items=new List<Instance>{first,second};
  deleteStore.Configure(first);deleteStore.Configure(second);deleteStore.Save(items);deleteStore.SetAdbPort(5039);
+ Check(File.ReadAllText(Path.Combine(deleteStore.InstancePath(first),"config.ini")).Contains("hw.lcd.density=240"),"fresh instances default to 240 DPI");
  Check(new Store(deleteRoot).AdbPort==5039,"ADB port survives launcher restart");
  first.Pid=123;Reject(()=>deleteStore.DeleteInstance(items,first),"running instance deletion refused");first.Pid=0;
  deleteStore.DeleteInstance(items,first);

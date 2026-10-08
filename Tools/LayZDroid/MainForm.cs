@@ -10,7 +10,7 @@ public sealed class MainForm:Form
     readonly Label status=new(){Dock=DockStyle.Fill,AutoSize=false,Padding=new Padding(12),Text="Preview: hardware limits are provisional. Set up the runtime to begin."};
     readonly NumericUpDown ram=new(){Minimum=768,Maximum=8192,Increment=256,Value=1024,Width=90};
     readonly NumericUpDown cores=new(){Minimum=1,Maximum=16,Value=1,Width=60};
-    readonly TextBox name=new(){Width=150};readonly ComboBox size=new(){DropDownStyle=ComboBoxStyle.DropDownList,Width=110};readonly ComboBox gpu=new(){DropDownStyle=ComboBoxStyle.DropDownList,Width=100};
+    readonly TextBox name=new(){Width=150};readonly ComboBox size=new(){DropDownStyle=ComboBoxStyle.DropDownList,Width=185};readonly ComboBox gpu=new(){DropDownStyle=ComboBoxStyle.DropDownList,Width=100};
     readonly Label host=new(){AutoSize=true};readonly List<Button> buttons=[];readonly Button cancel;
     readonly System.Windows.Forms.Timer timer=new(){Interval=3000};CancellationTokenSource? operation;bool busy;Guid? loaded;
     public MainForm(Store storage)
@@ -23,7 +23,7 @@ public sealed class MainForm:Form
         tools.Controls.Add(Button("Set up runtime",Setup));tools.Controls.Add(Button("Add instance",Add));tools.Controls.Add(Button("Start selected",()=>_ = Run(async ct=>{await runner.Start(Selected(),Progress(),ct);store.Save(instances);})));tools.Controls.Add(Button("Start all",()=>_ = Run(async ct=>{foreach(var i in instances){ct.ThrowIfCancellationRequested();if(await runner.Owner(i,ct) is null){await runner.Start(i,Progress(),ct);store.Save(instances);}}})));
         tools.Controls.Add(Button("Stop selected",()=>_ = Run(async ct=>{await runner.Stop(Selected(),ct);store.Save(instances);})));tools.Controls.Add(Button("Delete selected",Delete));tools.Controls.Add(Button("Open KaW",()=>_ = Run(async ct=>{var i=Selected();if(await runner.Owner(i,ct) is null)await runner.Start(i,Progress(),ct);await runner.OpenGame(i,ct);})));tools.Controls.Add(Button("Import APK",Import));tools.Controls.Add(Button("Open LayZ",OpenLayZ));
         cancel=new Button{Text="Cancel task",AutoSize=true,Enabled=false,BackColor=surface,ForeColor=ForeColor,FlatStyle=FlatStyle.Flat};cancel.Click+=(_,_)=>operation?.Cancel();tools.Controls.Add(cancel);layout.Controls.Add(tools,0,1);
-        size.Items.AddRange(["480 × 854","720 × 1280"]);size.SelectedIndex=0;gpu.Items.AddRange(["Host GPU","Software GPU"]);gpu.SelectedIndex=0;
+        size.Items.Add("900 × 1600 · 240 DPI");size.SelectedIndex=0;size.Enabled=false;gpu.Items.AddRange(["Host GPU","Software GPU"]);gpu.SelectedIndex=0;
         var settings=new FlowLayoutPanel{Dock=DockStyle.Fill,WrapContents=true};void Field(string text,Control control){settings.Controls.Add(new Label{Text=text,AutoSize=true,Margin=new Padding(5,8,5,0)});settings.Controls.Add(control);}
         Field("Name",name);Field("RAM MB",ram);Field("Cores",cores);Field("Display",size);Field("Graphics",gpu);settings.Controls.Add(Button("Save settings",SaveSettings));settings.Controls.Add(new Label{Text="Change settings while the instance is stopped. RAM is the guest allocation. 768/1024 MB are experimental; increase it if KaW struggles.",AutoSize=true,Margin=new Padding(5,8,0,0)});layout.Controls.Add(settings,0,2);
         grid.BackgroundColor=surface;grid.BorderStyle=BorderStyle.None;grid.EnableHeadersVisualStyles=false;grid.ColumnHeadersDefaultCellStyle=new DataGridViewCellStyle{BackColor=surface,ForeColor=ForeColor};grid.DefaultCellStyle=new DataGridViewCellStyle{BackColor=background,ForeColor=ForeColor,SelectionBackColor=accent,SelectionForeColor=Color.White};grid.GridColor=surface;
@@ -40,7 +40,7 @@ public sealed class MainForm:Form
     {
         if(busy)return;busy=true;operation=new();foreach(var b in buttons)b.Enabled=false;foreach(var control in new Control[]{grid,name,ram,cores,size,gpu})control.Enabled=false;cancel.Enabled=true;
         try{await action(operation.Token);status.Text="Task complete.";}catch(OperationCanceledException){status.Text="Task cancelled or timed out. Check instance status; an already-started emulator may still be open.";}catch(Exception ex){status.Text=ex.Message;}
-        finally{try{store.Save(instances);}catch(Exception ex){status.Text="Could not save settings: "+ex.Message;}operation.Dispose();operation=null;busy=false;foreach(var b in buttons)b.Enabled=true;foreach(var control in new Control[]{grid,name,ram,cores,size,gpu})control.Enabled=true;cancel.Enabled=false;RefreshRows();}
+        finally{try{store.Save(instances);}catch(Exception ex){status.Text="Could not save settings: "+ex.Message;}operation.Dispose();operation=null;busy=false;foreach(var b in buttons)b.Enabled=true;foreach(var control in new Control[]{grid,name,ram,cores,size,gpu})control.Enabled=true;size.Enabled=false;cancel.Enabled=false;RefreshRows();}
     }
     void RefreshRows()
     {
@@ -51,16 +51,16 @@ public sealed class MainForm:Form
             string memory="—";
             if(i.Pid>0)try{using var p=Process.GetProcessById(i.Pid);if(p.HasExited||!Policy.Owns(i.Pid,i.Started,i.ProcessPath,p.Id,p.StartTime.ToUniversalTime(),p.MainModule?.FileName??"")){i.Status="Stopped";i.Pid=0;}else memory=(p.PrivateMemorySize64/1048576).ToString();}catch(ArgumentException){i.Status="Stopped";i.Pid=0;}catch{memory="Unavailable";}
             var row=grid.Rows.Cast<DataGridViewRow>().FirstOrDefault(r=>r.Tag is Instance found&&found.Id==i.Id);
-            if(row is null){int n=grid.Rows.Add();row=grid.Rows[n];row.Tag=i;}row.SetValues(i.Name,i.Status,$"{i.RamMb} MB / {i.Cores}",$"{i.Width} × {i.Height}",memory,"emulator-"+i.Port);if(i.Id==selected)grid.CurrentCell=row.Cells[0];
+            if(row is null){int n=grid.Rows.Add();row=grid.Rows[n];row.Tag=i;}row.SetValues(i.Name,i.Status,$"{i.RamMb} MB / {i.Cores}",$"{i.Width} × {i.Height} · 240 DPI",memory,"emulator-"+i.Port);if(i.Id==selected)grid.CurrentCell=row.Cells[0];
         }
         LoadSelection();try{var m=HostMemory.Read();host.Text=$"Free RAM: {m.Available/1048576} MB · commit available: {m.CommitRemaining/1048576} MB";}catch{host.Text="Host memory unavailable";}
     }
-    void LoadSelection(){if(grid.CurrentRow?.Tag is not Instance i||loaded==i.Id)return;loaded=i.Id;name.Text=i.Name;ram.Value=i.RamMb;cores.Value=i.Cores;size.SelectedIndex=i.Width==480?0:1;gpu.SelectedIndex=i.Gpu=="host"?0:1;}
+    void LoadSelection(){if(grid.CurrentRow?.Tag is not Instance i||loaded==i.Id)return;loaded=i.Id;name.Text=i.Name;ram.Value=i.RamMb;cores.Value=i.Cores;size.SelectedIndex=0;gpu.SelectedIndex=i.Gpu=="host"?0:1;}
     void Add()
     {
         var busyPorts=Runner.BusyPorts();foreach(var i in instances){busyPorts.Add(i.Port);busyPorts.Add(i.Port+1);}var item=new Instance{Name="LayZDroid "+(instances.Count+1),Port=Policy.NextPort(busyPorts)};store.Configure(item);instances.Add(item);store.Save(instances);RefreshRows();grid.CurrentCell=grid.Rows[^1].Cells[0];status.Text="Fresh instance created. Start it, then import your KaW APK.";
     }
-    void SaveSettings()=>_ = Run(async ct=>{var i=Selected();if(await runner.Owner(i,ct) is not null)throw new IOException("Stop this instance before changing its settings.");i.Name=string.IsNullOrWhiteSpace(name.Text)?"LayZDroid":name.Text.Trim();i.RamMb=(int)ram.Value;i.Cores=(int)cores.Value;i.Width=size.SelectedIndex==0?480:720;i.Height=size.SelectedIndex==0?854:1280;i.Gpu=gpu.SelectedIndex==0?"host":"software";store.Configure(i);store.Save(instances);});
+    void SaveSettings()=>_ = Run(async ct=>{var i=Selected();if(await runner.Owner(i,ct) is not null)throw new IOException("Stop this instance before changing its settings.");i.Name=string.IsNullOrWhiteSpace(name.Text)?"LayZDroid":name.Text.Trim();i.RamMb=(int)ram.Value;i.Cores=(int)cores.Value;i.Width=900;i.Height=1600;i.Gpu=gpu.SelectedIndex==0?"host":"software";store.Configure(i);store.Save(instances);});
     void Delete()
     {
         var i=Selected();if(MessageBox.Show(this,$"Delete {i.Name}?\n\nThis removes its installed games, sign-ins and saved Android data. It cannot be undone. Other instances are kept.","Delete instance",MessageBoxButtons.YesNo,MessageBoxIcon.Warning,MessageBoxDefaultButton.Button2)!=DialogResult.Yes)return;

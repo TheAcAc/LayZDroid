@@ -7,7 +7,7 @@ A focused Windows alternative to a general-purpose BlueStacks setup. Create fres
 ## What this preview improves
 
 - A launcher focused on KaW and LayZ, without bundled promotions or an app-store shell.
-- Conservative defaults: one CPU core, 480×854 portrait display, 30 Hz and 1024 MB requested guest RAM (experimental).
+- Conservative defaults: one CPU core, 900×1600 portrait display at 240 DPI, 30 Hz and 1024 MB requested guest RAM (experimental).
 - Cameras, audio, GPS and unused sensors disabled in the instance configuration.
 - Separate account storage with a shared Android base image.
 - Staggered startup and checks for both free physical memory and Windows commit capacity.
@@ -35,6 +35,8 @@ A focused Windows alternative to a general-purpose BlueStacks setup. Create fres
 **When finished:** click **Stop selected** to shut down an emulator. Closing LayZDroid alone leaves running instances open. To share test results, click **Export test report** and mention how many instances you ran, whether KaW was responsive and any error messages.
 
 Use one manager to control each instance. Shared automatic recovery with LayZ is still being developed.
+
+Existing instances adopt the standard display on their next start. Installed games and account storage are preserved. Android display overrides are corrected and verified during startup.
 
 ## Preview boundaries
 
