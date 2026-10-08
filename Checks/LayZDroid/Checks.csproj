@@ -1,0 +1,4 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable></PropertyGroup>
+  <ItemGroup><Compile Include="../../Tools/LayZDroid/Policy.cs" Link="Policy.cs" /><Compile Include="../../Tools/LayZDroid/ApkMetadata.cs" Link="ApkMetadata.cs" /><Compile Include="../../Tools/LayZDroid/Models.cs" Link="Models.cs" /><Compile Include="../../Tools/LayZDroid/RuntimeSetup.cs" Link="RuntimeSetup.cs" /></ItemGroup>
+</Project>
