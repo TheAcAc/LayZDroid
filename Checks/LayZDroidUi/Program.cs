@@ -5,6 +5,18 @@ static class Checks
     [STAThread]static void Main(string[] args)
     {
         ApplicationConfiguration.Initialize();
+        var handoffRoot=Path.Combine(Path.GetTempPath(),"LayZDroidHandoff-"+Guid.NewGuid().ToString("N"));
+        try {
+            var handoffStore=new Store(handoffRoot);handoffStore.SetAdbPort(5039);var handoffRunner=new Runner(handoffStore);
+            var handoffMethod=typeof(Runner).GetMethod("LayZStartInfo")??throw new Exception("FAIL verified LayZ launch handoff must be available");
+            var handoff=(System.Diagnostics.ProcessStartInfo)handoffMethod.Invoke(handoffRunner,new object[]{@"D:\LayZ test\LayZ by Princess Strip Protection.exe",true})!;
+            if(handoff.Environment["LAYZDROID_DATA_ROOT"]!=handoffRoot||handoff.Environment["LAYZ_ADB_PATH"]!=handoffRunner.Adb||handoff.Environment["ADB_SERVER_SOCKET"]!="tcp:127.0.0.1:5039"||!handoff.ArgumentList.SequenceEqual(new[]{"--verify-layzdroid"}))throw new Exception("FAIL launch handoff routing");
+            if(Runner.ReadLayZVerification("LAYZ_CONNECTION_OK:0")!=0||Runner.ReadLayZVerification("LAYZ_CONNECTION_OK:3\r\n")!=3)throw new Exception("FAIL valid connection acknowledgement");
+            foreach(var reply in new[]{"", "LayZ opened", "LAYZ_CONNECTION_OK:17", "LAYZ_CONNECTION_OK:1\nold connection", "LAYZ_CONNECTION_OK:-1"})
+            {try{Runner.ReadLayZVerification(reply);throw new Exception("FAIL false acknowledgement accepted");}catch(InvalidDataException){}}
+            Console.WriteLine("PASS verified launch uses exact data folder, ADB client and isolated server");
+            Console.WriteLine("PASS only explicit bounded connection acknowledgements report success");
+        } finally {Directory.Delete(handoffRoot,true);}
         if(args.Length==3&&args[0]=="--apply-standard-display"){
             var live=new Store(args[1]);var items=live.Load();var instance=items.Single(i=>i.Port==int.Parse(args[2]));var run=new Runner(live);
             Task.Run(async()=>{
