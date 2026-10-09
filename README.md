@@ -19,12 +19,12 @@ A focused Windows alternative to a general-purpose BlueStacks setup. Create fres
 
 **You need:** 64-bit Windows 10/11, at least 6 GB free disk space, an internet connection. Download LayZDroid and the separate KaW game files below. You will sign in to your own game account.
 
-1. **Download both files.** Get [LayZDroid.exe](https://github.com/TheAcAc/LayZDroid/releases/download/v1.0.0/LayZDroid.exe) and the [KaW game files](https://github.com/TheAcAc/LayZDroid/releases/download/v0.1.0-preview.1/KaW-362-APKs.zip). Right-click the KaW ZIP and choose **Extract All**. Then double-click `LayZDroid.exe` to open it. No separate .NET installation is needed.
+1. **Download both files.** Get [LayZDroid.exe](https://github.com/TheAcAc/LayZDroid/releases/download/v1.0.1/LayZDroid.exe) and the [KaW game files](https://github.com/TheAcAc/LayZDroid/releases/download/v0.1.0-preview.1/KaW-362-APKs.zip). Right-click the KaW ZIP and choose **Extract All**. Then double-click `LayZDroid.exe` to open it. No separate .NET installation is needed.
 2. **Install the Android runtime once.** Click **Set up runtime**, read the terms, then accept them to enable **Download runtime**. Wait for setup to finish; it downloads about 1.2 GB.
 3. **Create and start an emulator.** Click **Add instance**, select its row in the list, then click **Start selected**. Wait for Android and its internet check to finish. LayZDroid retries the virtual Wi-Fi connection once if needed. Begin with one instance and the default settings.
 4. **Install KaW.** With the running instance selected, click **Import APK**. Open the KaW folder you extracted in step 1 and select **all three APK files together**: `base.apk`, `split_config.en.apk` and `split_config.hdpi.apk`. Hold **Ctrl** while clicking each file, then click **Open** and wait for installation to finish.
 5. **Open the game.** Click **Open KaW** and sign in inside the emulator.
-6. **Connect LayZ.** Close LayZ if it is already running. Click **Open LayZ** and select your installed LayZ `.exe`; LayZDroid supplies the connection settings automatically.
+6. **Connect LayZ.** Close LayZ if it is already running. Click **Open LayZ** and select your installed LayZ `.exe`; LayZDroid verifies the selected LayZ build and supplies the exact data folder, ADB client and isolated server settings automatically. Use LayZ 1.5.7 or newer.
 
 **If startup asks for virtualization:** enable CPU virtualization in your PC's BIOS/UEFI and **Windows Hypervisor Platform** in Windows Features, then restart Windows and try **Start selected** again.
 

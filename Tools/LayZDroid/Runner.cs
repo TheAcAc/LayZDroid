@@ -18,6 +18,46 @@ public sealed class Runner(Store store)
         info.Environment["ANDROID_SDK_ROOT"]=store.Sdk;info.Environment["ANDROID_HOME"]=store.Sdk;info.Environment["ANDROID_AVD_HOME"]=store.Avds;
         info.Environment["ANDROID_ADB_SERVER_PORT"]=store.AdbPort.ToString();info.Environment["ADB_SERVER_SOCKET"]="tcp:127.0.0.1:"+store.AdbPort;return info;
     }
+    public ProcessStartInfo LayZStartInfo(string exe,bool verify)
+    {
+        var info=Info(exe,verify?new[]{"--verify-layzdroid"}:Array.Empty<string>());
+        info.Environment["LAYZDROID_DATA_ROOT"]=store.Root;
+        info.Environment["LAYZ_ADB_PATH"]=Adb;
+        info.Environment.Remove("ANDROID_ADB_SERVER_ADDRESS");
+        return info;
+    }
+    public static int ReadLayZVerification(string output)
+    {
+        var match=Regex.Match(output.Trim(),@"\ALAYZ_CONNECTION_OK:(\d{1,2})\z");
+        if(!match.Success||!int.TryParse(match.Groups[1].Value,out var count)||count>16)
+            throw new InvalidDataException("LayZ did not confirm this connection. Select the updated LayZ build.");
+        return count;
+    }
+    public async Task<string> OpenLayZAsync(string exe,CancellationToken ct)
+    {
+        // Never replace a running bot's transport or launch a second bot window.
+        if(Mutex.TryOpenExisting(@"Local\LayZPrincessApplication",out var existing))
+        {existing.Dispose();throw new IOException("LayZ is already open. Its active connection was left alone. Close it when ready, then use Open LayZ.");}
+        var version=FileVersionInfo.GetVersionInfo(exe);
+        if(new Version(version.FileMajorPart,version.FileMinorPart,version.FileBuildPart)<new Version(1,5,4))
+            throw new IOException("This connection check needs LayZ 1.5.4 or newer. Select the updated test build.");
+        await EnsureAdb(ct);
+        using var deadline=CancellationTokenSource.CreateLinkedTokenSource(ct);deadline.CancelAfter(TimeSpan.FromSeconds(20));
+        using var probe=Process.Start(LayZStartInfo(exe,true))??throw new IOException("Cannot start the LayZ connection check.");
+        int online;
+        try
+        {
+            var output=probe.StandardOutput.ReadToEndAsync(deadline.Token);var error=probe.StandardError.ReadToEndAsync(deadline.Token);
+            await Task.WhenAll(output,error,probe.WaitForExitAsync(deadline.Token));
+            if(probe.ExitCode!=0)throw new IOException((await error).Trim());
+            online=ReadLayZVerification(await output);
+        }
+        finally {if(!probe.HasExited)probe.Kill(false);}
+        ct.ThrowIfCancellationRequested();
+        var launch=LayZStartInfo(exe,false);launch.RedirectStandardOutput=false;launch.RedirectStandardError=false;
+        using var process=Process.Start(launch)??throw new IOException("Cannot open LayZ.");
+        return online==0?"LayZ connection verified; launch requested. Waiting for a LayZDroid instance.":"LayZ connection verified; launch requested with "+online+" online instance(s).";
+    }
     public async Task<string> Command(string exe,IEnumerable<string> args,CancellationToken ct,int seconds=30)
     {
         using var deadline=CancellationTokenSource.CreateLinkedTokenSource(ct);deadline.CancelAfter(TimeSpan.FromSeconds(seconds));using var p=Process.Start(Info(exe,args))??throw new IOException("Cannot start command.");

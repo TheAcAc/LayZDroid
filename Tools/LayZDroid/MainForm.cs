@@ -15,7 +15,7 @@ public sealed class MainForm:Form
     readonly System.Windows.Forms.Timer timer=new(){Interval=3000};CancellationTokenSource? operation;bool busy;Guid? loaded;
     public MainForm(Store storage)
     {
-        store=storage;runner=new(store);instances=store.Load();Text="LayZDroid · 0.1.0 Preview 3";Width=1080;Height=720;MinimumSize=new Size(840,570);BackColor=background;ForeColor=Color.FromArgb(237,225,249);Font=new Font("Segoe UI",10);StartPosition=FormStartPosition.CenterScreen;
+        store=storage;runner=new(store);instances=store.Load();Text="LayZDroid · 1.0.1";Width=1080;Height=720;MinimumSize=new Size(840,570);BackColor=background;ForeColor=Color.FromArgb(237,225,249);Font=new Font("Segoe UI",10);StartPosition=FormStartPosition.CenterScreen;
         var layout=new TableLayoutPanel{Dock=DockStyle.Fill,RowCount=6,ColumnCount=1,Padding=new Padding(18)};
         foreach(int h in new[]{65,90,75})layout.RowStyles.Add(new RowStyle(SizeType.Absolute,h));layout.RowStyles.Add(new RowStyle(SizeType.Percent,100));layout.RowStyles.Add(new RowStyle(SizeType.Absolute,85));layout.RowStyles.Add(new RowStyle(SizeType.Absolute,65));Controls.Add(layout);
         var title=new Label{Text="LayZDroid",Font=new Font("Segoe UI Semibold",25),AutoSize=true};var heading=new FlowLayoutPanel{Dock=DockStyle.Fill};heading.Controls.Add(title);heading.Controls.Add(new Label{Text="Built for LayZ. No launcher ads. No bundled app store.\nOne focused alternative to a general-purpose BlueStacks setup.",AutoSize=true,Margin=new Padding(24,10,0,0)});layout.Controls.Add(heading,0,0);
@@ -81,14 +81,14 @@ public sealed class MainForm:Form
     }
     void OpenLayZ()
     {
-        if(!RuntimeSetup.Ready(store))throw new IOException("Set up the runtime first.");using var pick=new OpenFileDialog{Filter="LayZ executable|*.exe",Title="Select the installed LayZ executable (close an already-running LayZ first)"};if(pick.ShowDialog(this)!=DialogResult.OK)return;
+        if(!RuntimeSetup.Ready(store))throw new IOException("Set up the runtime first.");using var pick=new OpenFileDialog{Filter="LayZ executable|*.exe",Title="Select the updated LayZ executable"};if(pick.ShowDialog(this)!=DialogResult.OK)return;
         if(!Path.GetFileName(pick.FileName).StartsWith("LayZ by Princess",StringComparison.OrdinalIgnoreCase))throw new IOException("Select the LayZ application executable.");
-        var info=runner.Info(pick.FileName,[]);info.RedirectStandardOutput=false;info.RedirectStandardError=false;info.Environment["LAYZ_ADB_PATH"]=runner.Adb;Process.Start(info);status.Text="LayZ opened with LayZDroid's ADB settings. If it was already running, close it and try again.";
+        _=Run(async ct=>status.Text=await runner.OpenLayZAsync(pick.FileName,ct));
     }
     void Export()
     {
         using var pick=new SaveFileDialog{Filter="JSON report|*.json",FileName="LayZDroid-test-report.json"};if(pick.ShowDialog(this)!=DialogResult.OK)return;
-        var m=HostMemory.Read();File.WriteAllText(pick.FileName,JsonSerializer.Serialize(new{Product="LayZDroid",Version="0.1.0-preview.3",Date=DateTimeOffset.UtcNow,Windows=Environment.OSVersion.VersionString,HostMemoryMb=m.Total/1048576,AvailableMemoryMb=m.Available/1048576,CommitAvailableMb=m.CommitRemaining/1048576,RuntimeReady=RuntimeSetup.Ready(store),Instances=instances.Select(i=>new{i.Name,i.Status,i.RamMb,i.Cores,i.Width,i.Height,i.Gpu}),Qualification="Preview; actual low-spec performance not yet verified"},new JsonSerializerOptions{WriteIndented=true}));status.Text="Test report saved. It contains settings and host resources, without game credentials or account disks.";
+        var m=HostMemory.Read();File.WriteAllText(pick.FileName,JsonSerializer.Serialize(new{Product="LayZDroid",Version="1.0.1",Date=DateTimeOffset.UtcNow,Windows=Environment.OSVersion.VersionString,HostMemoryMb=m.Total/1048576,AvailableMemoryMb=m.Available/1048576,CommitAvailableMb=m.CommitRemaining/1048576,RuntimeReady=RuntimeSetup.Ready(store),Instances=instances.Select(i=>new{i.Name,i.Status,i.RamMb,i.Cores,i.Width,i.Height,i.Gpu}),Qualification="Preview; actual low-spec performance not yet verified"},new JsonSerializerOptions{WriteIndented=true}));status.Text="Test report saved. It contains settings and host resources, without game credentials or account disks.";
     }
     void ChooseFolder()
     {

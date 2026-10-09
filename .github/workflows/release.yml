@@ -1,4 +1,4 @@
-name: Build LayZDroid preview
+name: Build LayZDroid
 on:
   push:
     tags: ['v*']
@@ -31,6 +31,7 @@ jobs:
           $hash = (Get-FileHash -Algorithm SHA256 publish/LayZDroid.exe).Hash.ToLowerInvariant()
           "$hash  LayZDroid.exe" | Set-Content publish/SHA256SUMS.txt -Encoding ascii
       - uses: actions/upload-artifact@v4
+        continue-on-error: true
         with:
           name: LayZDroid-Windows
           path: |
@@ -39,13 +40,13 @@ jobs:
             publish/LICENSE
             publish/README.md
             publish/DOTNET-*.txt
-      - name: Publish preview release
+      - name: Publish release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          name: LayZDroid 0.1.0 Preview 3
-          prerelease: true
-          body_path: CHANGES-0.1.0-preview.3.md
+          name: LayZDroid 1.0.1
+          prerelease: false
+          body_path: CHANGES-1.0.1.md
           files: |
             publish/LayZDroid.exe
             publish/SHA256SUMS.txt
