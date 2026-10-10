@@ -15,7 +15,7 @@ public sealed class MainForm:Form
     readonly System.Windows.Forms.Timer timer=new(){Interval=3000};CancellationTokenSource? operation;bool busy;Guid? loaded;
     public MainForm(Store storage)
     {
-        store=storage;runner=new(store);instances=store.Load();Text="LayZDroid · 1.0.1";Width=1080;Height=720;MinimumSize=new Size(840,570);BackColor=background;ForeColor=Color.FromArgb(237,225,249);Font=new Font("Segoe UI",10);StartPosition=FormStartPosition.CenterScreen;
+        store=storage;runner=new(store);instances=store.Load();Text="LayZDroid · 1.0.1 · folder fix";Width=1080;Height=720;MinimumSize=new Size(840,570);BackColor=background;ForeColor=Color.FromArgb(237,225,249);Font=new Font("Segoe UI",10);StartPosition=FormStartPosition.CenterScreen;
         var layout=new TableLayoutPanel{Dock=DockStyle.Fill,RowCount=6,ColumnCount=1,Padding=new Padding(18)};
         foreach(int h in new[]{65,90,75})layout.RowStyles.Add(new RowStyle(SizeType.Absolute,h));layout.RowStyles.Add(new RowStyle(SizeType.Percent,100));layout.RowStyles.Add(new RowStyle(SizeType.Absolute,85));layout.RowStyles.Add(new RowStyle(SizeType.Absolute,65));Controls.Add(layout);
         var title=new Label{Text="LayZDroid",Font=new Font("Segoe UI Semibold",25),AutoSize=true};var heading=new FlowLayoutPanel{Dock=DockStyle.Fill};heading.Controls.Add(title);heading.Controls.Add(new Label{Text="Built for LayZ. No launcher ads. No bundled app store.\nOne focused alternative to a general-purpose BlueStacks setup.",AutoSize=true,Margin=new Padding(24,10,0,0)});layout.Controls.Add(heading,0,0);
@@ -32,6 +32,8 @@ public sealed class MainForm:Form
         timer.Tick+=(_,_)=>RefreshRows();Shown+=async(_,_)=>{await Run(async ct=>{foreach(var i in instances){var owner=await runner.Owner(i,ct);if(owner is not null){i.Pid=owner.Value.Pid;i.Started=owner.Value.Start;i.ProcessPath=owner.Value.Path;i.Status="Running · check game";}else{i.Pid=0;i.Status="Stopped";}}store.Save(instances);});timer.Start();};
         FormClosing+=(_,e)=>{if(busy){e.Cancel=true;operation?.Cancel();status.Text="Cancelling the current task. You can close LayZDroid when it finishes.";}};
         RefreshRows();
+        status.Text="Data folder: "+store.Root+" · "+instances.Count+" saved instance(s).";
+        var folderTip=new ToolTip();folderTip.SetToolTip(host,"Data folder: "+store.Root);
     }
     Button Button(string text,Action action){var b=new Button{Text=text,AutoSize=true,Height=34,FlatStyle=FlatStyle.Flat,BackColor=accent,ForeColor=Color.White,Margin=new Padding(4)};b.FlatAppearance.BorderSize=0;b.Click+=(_,_)=>{try{action();}catch(Exception ex){status.Text=ex.Message;}};buttons.Add(b);return b;}
     Instance Selected()=>grid.CurrentRow?.Tag as Instance??throw new IOException("Select an instance first.");
@@ -53,7 +55,7 @@ public sealed class MainForm:Form
             var row=grid.Rows.Cast<DataGridViewRow>().FirstOrDefault(r=>r.Tag is Instance found&&found.Id==i.Id);
             if(row is null){int n=grid.Rows.Add();row=grid.Rows[n];row.Tag=i;}row.SetValues(i.Name,i.Status,$"{i.RamMb} MB / {i.Cores}",$"{i.Width} × {i.Height} · 240 DPI",memory,"emulator-"+i.Port);if(i.Id==selected)grid.CurrentCell=row.Cells[0];
         }
-        LoadSelection();try{var m=HostMemory.Read();host.Text=$"Free RAM: {m.Available/1048576} MB · commit available: {m.CommitRemaining/1048576} MB";}catch{host.Text="Host memory unavailable";}
+        LoadSelection();try{var m=HostMemory.Read();host.Text=$"Free RAM: {m.Available/1048576} MB · commit available: {m.CommitRemaining/1048576} MB\nData folder: {store.Root}";}catch{host.Text="Data folder: "+store.Root;}
     }
     void LoadSelection(){if(grid.CurrentRow?.Tag is not Instance i||loaded==i.Id)return;loaded=i.Id;name.Text=i.Name;ram.Value=i.RamMb;cores.Value=i.Cores;size.SelectedIndex=0;gpu.SelectedIndex=i.Gpu=="host"?0:1;}
     void Add()
@@ -93,7 +95,7 @@ public sealed class MainForm:Form
     void ChooseFolder()
     {
         using var pick=new FolderBrowserDialog{Description="Choose a drive/folder with at least 6 GB free. A separate LayZDroid data folder will be used.",UseDescriptionForTitle=true};if(pick.ShowDialog(this)!=DialogResult.OK)return;
-        var preferenceRoot=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"LayZDroid");Directory.CreateDirectory(preferenceRoot);File.WriteAllText(Path.Combine(preferenceRoot,"data-folder.txt"),Path.Combine(pick.SelectedPath,"LayZDroid"));
+        var selectedRoot=DataFolders.FromSelection(pick.SelectedPath);Directory.CreateDirectory(selectedRoot);DataFolders.Current.Remember(selectedRoot);
         MessageBox.Show(this,"Data folder saved. Close and reopen LayZDroid to use it. Existing instances stay in their original folder.","LayZDroid");
     }
 }
