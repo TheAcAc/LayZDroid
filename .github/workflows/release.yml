@@ -28,7 +28,7 @@ jobs:
         run: |
           dotnet publish Tools/LayZDroid/LayZDroid.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish
           if ($LASTEXITCODE) { throw 'LayZDroid publish failed' }
-          Copy-Item LICENSE,README.md,DOTNET-NOTICES.txt,DOTNET-LICENSE.txt,DOTNET-DESKTOP-LICENSE.txt publish/
+          Copy-Item LICENSE,README.md,docs/licenses/DOTNET-NOTICES.txt,docs/licenses/DOTNET-LICENSE.txt,docs/licenses/DOTNET-DESKTOP-LICENSE.txt publish/
           $hash = (Get-FileHash -Algorithm SHA256 publish/LayZDroid.exe).Hash.ToLowerInvariant()
           "$hash  LayZDroid.exe" | Set-Content publish/SHA256SUMS.txt -Encoding ascii
       - uses: actions/upload-artifact@v4
@@ -47,7 +47,7 @@ jobs:
         with:
           name: LayZDroid 1.0.2
           prerelease: false
-          body_path: CHANGES-1.0.2.md
+          body_path: docs/releases/CHANGES-1.0.2.md
           files: |
             publish/LayZDroid.exe
             publish/SHA256SUMS.txt

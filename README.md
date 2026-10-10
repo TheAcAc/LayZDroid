@@ -68,3 +68,14 @@ Third-party .NET notices are retained with the release. A future source-built ru
 ## MIT licence
 
 LayZDroid's own code is [MIT licensed](LICENSE): you can use, modify and share it, including commercially, provided you keep the copyright and licence notice. It is supplied without warranty. Downloaded Android components retain their own licences and terms. KaW belongs to A Thinking Ape and is not covered by LayZDroid's MIT licence; its [game terms](https://www.kingdomsatwar.com/faq/tos.html) apply.
+
+## Repository layout
+
+| Folder | Contents |
+| --- | --- |
+| `Tools/LayZDroid/` | Manager application source and project file |
+| `Checks/` | Policy and UI regression checks |
+| [docs/releases/](docs/releases/) | Version history |
+| [docs/licenses/](docs/licenses/) | Third-party .NET notices and licenses |
+
+See the [documentation index](docs/README.md). The project license remains at the root; release packages include the required notices beside the executable.
