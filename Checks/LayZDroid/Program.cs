@@ -79,3 +79,17 @@ static byte[] ManifestFixture()
     w.Write((ushort)0x102);w.Write((ushort)16);w.Write(56);w.Write(1);w.Write(-1);w.Write(-1);w.Write(2);w.Write((ushort)20);w.Write((ushort)20);w.Write((ushort)1);w.Write((ushort)0);w.Write((ushort)0);w.Write((ushort)0);w.Write(-1);w.Write(0);w.Write(1);w.Write((ushort)8);w.Write((byte)0);w.Write((byte)3);w.Write(1);return file.ToArray();
 }
 Console.WriteLine($"PASS all {count} LayZDroid checks");
+var folderFixture=Path.Combine(Path.GetTempPath(),"LayZDroidFolder-"+Guid.NewGuid().ToString("N"));
+Directory.CreateDirectory(folderFixture);
+try {
+ var pref=Path.Combine(folderFixture,"profile","data-folder.txt");
+ var original=Path.Combine(folderFixture,"accounts"); Directory.CreateDirectory(original);
+ var accountStore=new Store(original);var account=new Instance{Port=5580};accountStore.Save([account]);
+ var folders=new DataFolders(pref,Path.Combine(folderFixture,"empty-default"));
+ Check(folders.Resolve(["--data",original])==original,"explicit instance folder opens unchanged");
+ Check(new DataFolders(pref,Path.Combine(folderFixture,"empty-default")).Resolve([])==original,"plain updated executable remembers explicit instance folder");
+ Check(DataFolders.FromSelection(original)==original,"selecting existing instance folder does not nest another LayZDroid folder");
+ Check(new Store(folders.Resolve([])).Load().Single().Id==account.Id,"update preserves original account identity");
+ folders.Remember(original); Directory.Move(original,original+"-offline");
+ try{folders.Resolve([]);throw new Exception("FAIL unavailable saved folder silently accepted");}catch(DirectoryNotFoundException){Check(true,"unavailable saved folder never becomes a fresh empty store");}
+}finally{Directory.Delete(folderFixture,true);}
