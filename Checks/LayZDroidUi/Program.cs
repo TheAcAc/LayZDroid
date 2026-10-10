@@ -44,7 +44,7 @@ static class Checks
         try
         {
             var store=new Store(root);store.Save([new Instance{Name="Weak PC · one instance",Port=5580},new Instance{Name="Workstation · second instance",Port=5582,RamMb=2048,Cores=2,Width=720,Height=1280}]);
-            using var form=new MainForm(store);var contents=form.Controls[0];form.Controls.Remove(contents);using var panel=new Panel{BackColor=form.BackColor,ForeColor=form.ForeColor};panel.Controls.Add(contents);panel.CreateControl();
+            using var form=new MainForm(store);var contents=form.Controls[0];form.Controls.Remove(contents);using var panel=new Panel{BackColor=form.BackColor,ForeColor=form.ForeColor,Font=form.Font};panel.Controls.Add(contents);panel.CreateControl();
             foreach(var width in new[]{1080,840}){panel.Size=new Size(width,680);panel.PerformLayout();void Create(Control c){c.CreateControl();c.PerformLayout();foreach(Control child in c.Controls)Create(child);}Create(panel);using var bitmap=new Bitmap(panel.Width,panel.Height);panel.DrawToBitmap(bitmap,new Rectangle(Point.Empty,bitmap.Size));if(args.Length>0){Directory.CreateDirectory(args[0]);bitmap.Save(Path.Combine(args[0],"layzdroid-"+width+".png"));}}
             Console.WriteLine("PASS unshown LayZDroid form renders at normal and minimum width without discovery or emulator input");
             var memory=HostMemory.Read();Console.WriteLine($"Host memory: total {memory.Total/1048576} MB, available {memory.Available/1048576} MB, commit remaining {memory.CommitRemaining/1048576} MB");
