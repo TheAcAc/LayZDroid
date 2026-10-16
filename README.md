@@ -4,7 +4,7 @@
 
 A focused Windows alternative to a general-purpose BlueStacks setup. Create fresh Android instances, choose their resources and open KaW from one small native interface.
 
-## What this preview improves
+## What you can do
 
 - A launcher focused on KaW and LayZ, without bundled promotions or an app-store shell.
 - Conservative defaults: one CPU core, 900×1600 portrait display at 240 DPI, 30 Hz and 1024 MB requested guest RAM (experimental).
@@ -13,7 +13,7 @@ A focused Windows alternative to a general-purpose BlueStacks setup. Create fres
 - Staggered startup and checks for both free physical memory and Windows commit capacity.
 - Clear instance controls, actual VM memory display and a test-report export.
 
-**RAM/CPU savings against BlueStacks have not been measured yet.** This is a launcher/configuration preview using an upstream AOSP Android 14 image, not a finished custom stripped Android build. One instance on a 4 GB PC is the target; two remains a stretch target for testing.
+**RAM/CPU savings against BlueStacks have not been measured yet.** This is a launcher/configuration preview using an upstream AOSP Android 14 image, not a finished custom stripped Android build. Start with one instance and increase only if your PC remains responsive.
 
 ## Quick start
 
@@ -34,48 +34,29 @@ A focused Windows alternative to a general-purpose BlueStacks setup. Create fres
 
 **When finished:** click **Stop selected** to shut down an emulator. Closing LayZDroid alone leaves running instances open. To share test results, click **Export test report** and mention how many instances you ran, whether KaW was responsive and any error messages.
 
-Use one manager to control each instance. Shared automatic recovery with LayZ is still being developed.
+Use one manager to control each instance; shared automatic recovery with LayZ is not available in this preview.
 
 Existing instances adopt the standard display on their next start. Installed games and account storage are preserved. Android display overrides are corrected and verified during startup.
 
 ## Preview boundaries
 
-- No arbitrary ten-instance cap in LayZDroid. The pinned engine's declared console-port range provides 16 port pairs; occupied ports reduce that capacity. Actual simultaneous capacity depends on your hardware. The LayZ 1.5.3 bot still has its separate ten-worker limit; removing that is a subsequent integration change.
-- 768/1024 MB settings are experimental. RAM is a guest allocation, not total host memory use. The engine's `-lowram` option is used; changed effective RAM is treated as a failure. Low-RAM smoothness remains unverified.
-- No ARM translation layer, Google Play Store or Play Services. The local KaW split APKs examined require API 25 and have no native ABI dependency; different game versions must pass their own import checks.
+- No arbitrary ten-instance cap in LayZDroid. The pinned engine's declared console-port range provides 16 port pairs; occupied ports reduce that capacity. Actual simultaneous capacity depends on your hardware. LayZ may have a separate instance limit depending on the installed version.
+- 768/1024 MB settings are experimental. Guest RAM is not the emulator's total memory use on your PC. Smooth performance at these settings has not been verified.
+- Google Play Store, Play Services and ARM-only apps are not supported. Different game versions must pass the application's import checks.
 - LayZDroid uses a separate ADB connection, starting at port 5038 and choosing another available port when needed. Existing custom-emulator and BlueStacks servers are left alone.
-- Startup/crash handling and atomic settings are included. Updates, unattended recovery and a source-built slim image remain future work.
+- Automatic updates and unattended recovery are not available in this preview.
 - The EXE is currently unsigned. No security features are disabled automatically.
 
-## Build and check
+## Downloads and third-party components
 
-From this repository's source tree:
+First-run setup acquires Android Emulator 37.2.12, Platform Tools 37.0.1 and AOSP API 34 x86_64 image revision 4 from Google's official Android repository. Upstream license terms are displayed before download, and downloaded packages retain their notices. Runtime binaries are not redistributed in the LayZDroid EXE/repository. KaW is a separate release download; its three APK files are unmodified and are not included in the LayZDroid EXE or source tree.
 
-```powershell
-dotnet run --project Checks/LayZDroid/Checks.csproj -c Release
-dotnet run --project Checks/LayZDroidUi/Checks.csproj -c Release
-dotnet publish Tools/LayZDroid/LayZDroid.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish
-```
-
-Development UI checks render an unshown window and use temporary instance files; they do not start emulator instances. Optional live setup checks are separate.
-
-## Runtime provenance
-
-First-run setup acquires Android Emulator 37.2.12, Platform Tools 37.0.1 and AOSP API 34 x86_64 image revision 4 from Google's official Android repository. Package sizes and upstream checksums are pinned in RuntimeSetup.cs. Upstream license terms are displayed before download, and downloaded packages retain their notices. Runtime binaries are not redistributed in the LayZDroid EXE/repository. KaW is a separate release download; its three APK files are unmodified and are not included in the LayZDroid EXE or source tree.
-
-Third-party .NET notices are retained with the release. A future source-built runtime needs its own source/license artifacts before redistribution.
+Third-party .NET notices are retained with the release.
 
 ## MIT licence
 
 LayZDroid's own code is [MIT licensed](LICENSE): you can use, modify and share it, including commercially, provided you keep the copyright and licence notice. It is supplied without warranty. Downloaded Android components retain their own licences and terms. KaW belongs to A Thinking Ape and is not covered by LayZDroid's MIT licence; its [game terms](https://www.kingdomsatwar.com/faq/tos.html) apply.
 
-## Repository layout
+## More information
 
-| Folder | Contents |
-| --- | --- |
-| `Tools/LayZDroid/` | Manager application source and project file |
-| `Checks/` | Policy and UI regression checks |
-| [docs/releases/](docs/releases/) | Version history |
-| [docs/licenses/](docs/licenses/) | Third-party .NET notices and licenses |
-
-See the [documentation index](docs/README.md). The project license remains at the root; release packages include the required notices beside the executable.
+See the [documentation index](docs/README.md) for release notes and third-party notices. Release packages include the required notices beside the executable.
