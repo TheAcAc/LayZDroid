@@ -24,19 +24,27 @@ jobs:
           if ($LASTEXITCODE) { throw 'LayZDroid policy checks failed' }
           dotnet run --project Checks/LayZDroidUi/Checks.csproj -c Release
           if ($LASTEXITCODE) { throw 'LayZDroid layout/ownership checks failed' }
+          dotnet run --project Checks/LayZDroidProcess/Checks.csproj -c Release
+          if ($LASTEXITCODE) { throw 'LayZDroid process identity checks failed' }
+          dotnet run --project Checks/LayZDroidRecovery/Checks.csproj -c Release
+          if ($LASTEXITCODE) { throw 'LayZDroid saved-instance recovery checks failed' }
       - name: Publish standalone Windows executable
         run: |
           dotnet publish Tools/LayZDroid/LayZDroid.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish
           if ($LASTEXITCODE) { throw 'LayZDroid publish failed' }
+          Copy-Item publish/LayZDroid.exe publish/LayZDroid-Recovery.exe
           Copy-Item LICENSE,README.md,docs/licenses/DOTNET-NOTICES.txt,docs/licenses/DOTNET-LICENSE.txt,docs/licenses/DOTNET-DESKTOP-LICENSE.txt publish/
-          $hash = (Get-FileHash -Algorithm SHA256 publish/LayZDroid.exe).Hash.ToLowerInvariant()
-          "$hash  LayZDroid.exe" | Set-Content publish/SHA256SUMS.txt -Encoding ascii
+          @('LayZDroid.exe','LayZDroid-Recovery.exe') | ForEach-Object {
+            $hash = (Get-FileHash -Algorithm SHA256 (Join-Path publish $_)).Hash.ToLowerInvariant()
+            "$hash  $_"
+          } | Set-Content publish/SHA256SUMS.txt -Encoding ascii
       - uses: actions/upload-artifact@v4
         continue-on-error: true
         with:
           name: LayZDroid-Windows
           path: |
             publish/LayZDroid.exe
+            publish/LayZDroid-Recovery.exe
             publish/SHA256SUMS.txt
             publish/LICENSE
             publish/README.md
@@ -45,11 +53,12 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
         with:
-          name: LayZDroid 1.0.2
+          name: LayZDroid 1.0.6
           prerelease: false
-          body_path: docs/releases/CHANGES-1.0.2.md
+          body_path: docs/releases/CHANGES-1.0.6.md
           files: |
             publish/LayZDroid.exe
+            publish/LayZDroid-Recovery.exe
             publish/SHA256SUMS.txt
             publish/LICENSE
             publish/README.md

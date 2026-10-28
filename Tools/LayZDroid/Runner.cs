@@ -72,7 +72,7 @@ public sealed class Runner(Store store)
         if(port!=store.AdbPort)store.SetAdbPort(port);
         await Command(Adb,["-P",store.AdbPort.ToString(),"start-server"],ct);
     }
-    public async Task Start(Instance i,IProgress<string> progress,CancellationToken ct)
+    public async Task Start(Instance i,IProgress<string> progress,CancellationToken ct,bool useExistingConfiguration=false)
     {
         await gate.WaitAsync(ct);
         (int Pid,DateTime Start,string Path)? launched=null;
@@ -83,7 +83,8 @@ public sealed class Runner(Store store)
             var hardware=HostMemory.Read();var admission=Policy.CanStart(hardware.Total,hardware.Available,hardware.CommitRemaining,i.RamMb,0);if(!admission.Allowed)throw new IOException(admission.Reason);
             var accel=await Command(Emulator,["-accel-check"],ct);if(!accel.Contains("WHPX",StringComparison.OrdinalIgnoreCase))throw new IOException("Windows Hypervisor Platform is required. Enable CPU virtualization in BIOS and Windows Hypervisor Platform in Windows features, then restart Windows.");
             await EnsureAdb(ct);var busy=BusyPorts();if(busy.Contains(i.Port)||busy.Contains(i.Port+1))throw new IOException("This instance's console or ADB port is occupied.");
-            store.Configure(i);i.Status="Starting";progress.Report(i.Name+": booting Android");
+            if(useExistingConfiguration)store.PrepareRecoveryConfiguration(i);else store.Configure(i);
+            i.Status="Starting";progress.Report(i.Name+": booting Android");
             var logs=Path.Combine(store.Root,"diagnostics");Directory.CreateDirectory(logs);
             var info=Info(Emulator,Policy.LaunchArguments(i));
             var p=Process.Start(info)??throw new IOException("Emulator did not start.");
@@ -173,6 +174,8 @@ public sealed class Runner(Store store)
     public async Task<(int Pid,DateTime Start,string Path)?> Owner(Instance i,CancellationToken ct)
     {
         var rows=await Task.Run(()=>Inventory("Name='qemu-system-x86_64.exe' OR Name='emulator.exe'"),ct);
+        if(rows.Any(p=>p.Path.StartsWith(Path.GetDirectoryName(Emulator)!+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase)&&string.IsNullOrWhiteSpace(p.Args)))
+            throw new IOException("Cannot verify the emulator command line. Instance ownership could not be checked.");
         var matches=rows.Where(p=>p.Path.StartsWith(Path.GetDirectoryName(Emulator)!+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase)&&Regex.IsMatch(p.Args,@"(?:^|\s)-avd\s+\""?"+Regex.Escape(i.AvdName)+@"\""?(?:\s|$)")&&Regex.IsMatch(p.Args,@"(?:^|\s)-port\s+"+i.Port+@"(?:\s|$)")).ToArray();
         var vm=matches.Where(p=>Path.GetFileName(p.Path)=="qemu-system-x86_64.exe").ToArray();
         if(vm.Length==1&&matches.Length<=2)return(vm[0].Pid,vm[0].Start,vm[0].Path);
@@ -183,8 +186,8 @@ public sealed class Runner(Store store)
     {
         var result=new List<(int,DateTime,string,string)>();
         var type=Type.GetTypeFromProgID("WbemScripting.SWbemLocator")??throw new IOException("Windows process inventory is unavailable.");
-        dynamic locator=Activator.CreateInstance(type)!;dynamic services=locator.ConnectServer(".","root\\cimv2");dynamic rows=services.ExecQuery("SELECT ProcessId, ExecutablePath, CommandLine FROM Win32_Process WHERE "+filter,"WQL",0);
-        try{foreach(dynamic row in rows){try{int pid=Convert.ToInt32(row.Properties_.Item("ProcessId").Value);using var p=Process.GetProcessById(pid);if(p.HasExited)continue;string path=Convert.ToString(row.Properties_.Item("ExecutablePath").Value)??"";if(string.IsNullOrWhiteSpace(path))throw new IOException("Cannot verify Windows process "+pid+". Instance startup, stopping and deletion are blocked until its identity can be checked.");string args=Convert.ToString(row.Properties_.Item("CommandLine").Value)??"";result.Add((pid,p.StartTime.ToUniversalTime(),path,args));}catch(ArgumentException){}finally{Marshal.FinalReleaseComObject(row);}}}
+        dynamic locator=Activator.CreateInstance(type)!;dynamic services=locator.ConnectServer(".","root\\cimv2");dynamic rows=services.ExecQuery("SELECT ProcessId, ExecutablePath, CommandLine, CreationDate FROM Win32_Process WHERE "+filter,"WQL",0);
+        try{foreach(dynamic row in rows){try{int pid=Convert.ToInt32(row.Properties_.Item("ProcessId").Value);string path=Convert.ToString(row.Properties_.Item("ExecutablePath").Value)??"";string args=Convert.ToString(row.Properties_.Item("CommandLine").Value)??"";string creation=Convert.ToString(row.Properties_.Item("CreationDate").Value)??"";var identity=ProcessInventory.Resolve(pid,path,args,()=>ProcessInventory.Inspect(pid),creation);if(identity is not null)result.Add(identity.Value);}finally{Marshal.FinalReleaseComObject(row);}}}
         finally{Marshal.FinalReleaseComObject(rows);Marshal.FinalReleaseComObject(services);Marshal.FinalReleaseComObject(locator);}
         return result;
     }

@@ -6,8 +6,10 @@ public static class Policy
     {
         if(total<=0||available<0||commitRemaining<0||reserved<0||ramMb<768)return(false,"Resource measurements or settings are invalid.",0);
         long guest=checked(ramMb*Mb),need=checked(guest+Math.Max(512*Mb,guest/4));
-        long hostReserve=Math.Max(1024*Mb,total/5);
-        if(available-reserved-need<hostReserve)return(false,"Not enough free RAM after reserving memory for Windows. Stop an instance or close other applications.",need);
+        // Available RAM already excludes memory Windows and other apps are using.
+        // Retain headroom without making that extra reserve grow on larger hosts.
+        long hostReserve=Math.Clamp(total/5,1024*Mb,2048*Mb);
+        if(available-reserved-need<hostReserve)return(false,$"Not enough free RAM: need {(need+hostReserve+reserved+Mb-1)/Mb} MB free, have {available/Mb} MB. Includes emulator overhead, {hostReserve/Mb} MB headroom and {reserved/Mb} MB reserved for pending starts.",need);
         if(commitRemaining-reserved<need)return(false,"Windows has insufficient remaining commit capacity.",need);
         return(true,"Ready",need);
     }

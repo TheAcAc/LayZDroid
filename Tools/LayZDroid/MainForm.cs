@@ -16,7 +16,7 @@ public sealed class MainForm:Form
     readonly System.Windows.Forms.Timer timer=new(){Interval=3000};CancellationTokenSource? operation;bool busy;Guid? loaded;
     public MainForm(Store storage)
     {
-        store=storage;runner=new(store);instances=store.Load();Text="LayZDroid · 1.0.2 · Inline layout candidate";
+        store=storage;runner=new(store);instances=store.Load();Text="LayZDroid · "+typeof(MainForm).Assembly.GetName().Version!.ToString(3);
         Width=1180;Height=Math.Min(900,Screen.FromPoint(Cursor.Position).WorkingArea.Height);MinimumSize=new Size(840,660);BackColor=background;ForeColor=Color.FromArgb(238,235,247);Font=new Font("Segoe UI",10);StartPosition=FormStartPosition.CenterScreen;
         var layout=new TableLayoutPanel{Dock=DockStyle.Fill,RowCount=5,ColumnCount=1,Padding=new Padding(24)};
         layout.RowStyles.Add(new RowStyle(SizeType.Absolute,68));layout.RowStyles.Add(new RowStyle(SizeType.Absolute,48));layout.RowStyles.Add(new RowStyle(SizeType.Percent,100));layout.RowStyles.Add(new RowStyle(SizeType.Absolute,62));layout.RowStyles.Add(new RowStyle(SizeType.Absolute,44));Controls.Add(layout);
@@ -122,7 +122,7 @@ public sealed class MainForm:Form
     void Export()
     {
         using var pick=new SaveFileDialog{Filter="JSON report|*.json",FileName="LayZDroid-test-report.json"};if(pick.ShowDialog(this)!=DialogResult.OK)return;
-        var m=HostMemory.Read();File.WriteAllText(pick.FileName,JsonSerializer.Serialize(new{Product="LayZDroid",Version="1.0.2",Date=DateTimeOffset.UtcNow,Windows=Environment.OSVersion.VersionString,HostMemoryMb=m.Total/1048576,AvailableMemoryMb=m.Available/1048576,CommitAvailableMb=m.CommitRemaining/1048576,RuntimeReady=RuntimeSetup.Ready(store),Instances=instances.Select(i=>new{i.Name,i.Status,i.RamMb,i.Cores,i.Width,i.Height,i.Gpu}),Qualification="Preview; actual low-spec performance not yet verified"},new JsonSerializerOptions{WriteIndented=true}));status.Text="Test report saved. It contains settings and host resources, without game credentials or account disks.";
+        var m=HostMemory.Read();File.WriteAllText(pick.FileName,JsonSerializer.Serialize(new{Product="LayZDroid",Version=Application.ProductVersion,Date=DateTimeOffset.UtcNow,Windows=Environment.OSVersion.VersionString,HostMemoryMb=m.Total/1048576,AvailableMemoryMb=m.Available/1048576,CommitAvailableMb=m.CommitRemaining/1048576,RuntimeReady=RuntimeSetup.Ready(store),Instances=instances.Select(i=>new{i.Name,i.Status,i.RamMb,i.Cores,i.Width,i.Height,i.Gpu}),Qualification="Preview; actual low-spec performance not yet verified"},new JsonSerializerOptions{WriteIndented=true}));status.Text="Test report saved. It contains settings and host resources, without game credentials or account disks.";
     }
     void ChooseFolder()
     {

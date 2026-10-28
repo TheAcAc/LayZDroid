@@ -37,6 +37,25 @@ public sealed class Store
         var ini=Path.Combine(Avds,i.AvdName+".ini");if(File.Exists(ini)&&(File.GetAttributes(ini)&FileAttributes.ReparsePoint)!=0)throw new InvalidDataException("Instance configuration is linked.");
         if(Directory.Exists(path))Directory.Delete(path,true);if(File.Exists(ini))File.Delete(ini);items.Remove(i);Save(items);
     }
+    public void PrepareRecoveryConfiguration(Instance i)
+    {
+        Policy.ValidateSettings(i.RamMb,i.Cores,i.Width,i.Height);
+        var dir=InstancePath(i);
+        if(!Directory.Exists(dir))throw new IOException("Existing instance folder is unavailable; recovery will not recreate it.");
+        var config=File.ReadAllLines(Path.Combine(dir,"config.ini"))
+            .Where(line=>!line.StartsWith('#')&&line.Contains('='))
+            .Select(line=>line.Split('=',2)).ToDictionary(parts=>parts[0].Trim(),parts=>parts[1].Trim(),StringComparer.OrdinalIgnoreCase);
+        var expected=new Dictionary<string,string>{["avd.id"]=i.AvdName,["hw.ramSize"]=i.RamMb.ToString(),
+            ["hw.cpu.ncore"]=i.Cores.ToString(),["hw.lcd.width"]="900",["hw.lcd.height"]="1600",["hw.lcd.density"]="240",["hw.gpu.mode"]=i.Gpu};
+        if(expected.Any(pair=>!config.TryGetValue(pair.Key,out var value)||value!=pair.Value))
+            throw new IOException("Saved instance settings differ from its existing configuration. Apply settings in LayZDroid before resuming recovery; account data was left alone.");
+        var ini=File.ReadAllLines(Path.Combine(Avds,i.AvdName+".ini"));
+        var routed=ini.FirstOrDefault(line=>line.StartsWith("path="))?[5..];
+        var physical=new DirectoryInfo(dir).ResolveLinkTarget(true)?.FullName??dir;
+        if(routed is null||(!Path.GetFullPath(routed).Equals(Path.GetFullPath(dir),StringComparison.OrdinalIgnoreCase)&&
+            !Path.GetFullPath(routed).Equals(Path.GetFullPath(physical),StringComparison.OrdinalIgnoreCase)))
+            throw new IOException("Existing AVD route does not match the saved account; recovery left it alone.");
+    }
     public void Configure(Instance i)
     {
         Policy.ValidateSettings(i.RamMb,i.Cores,i.Width,i.Height);
